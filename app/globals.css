@@ -1,0 +1,367 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ── Brand display face: Black Mango ───────────────────────────────────────
+ * Registered via @font-face here so the family name is reliable even
+ * if the next/font/local pipeline isn't running for some reason
+ * (e.g. dev server hasn't restarted after the font registration).
+ * Files live at public/fonts/. All six weights from the kit.
+ */
+@font-face {
+  font-family: 'Black Mango';
+  src: url('/fonts/BlackMango-Regular.otf') format('opentype');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Black Mango';
+  src: url('/fonts/BlackMango-Medium.otf') format('opentype');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Black Mango';
+  src: url('/fonts/BlackMango-SemiBold.ttf') format('truetype');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Black Mango';
+  src: url('/fonts/BlackMango-Bold.ttf') format('truetype');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Black Mango';
+  src: url('/fonts/BlackMango-ExtraBold.otf') format('opentype');
+  font-weight: 800;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: 'Black Mango';
+  src: url('/fonts/BlackMango-Black.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Brand palette — Thridha Varnam official kit (see project_brand_identity_v2 memory) */
+  --color-ivory: #F7EAD9;        /* Cream — primary background */
+  --color-parchment: #F7EAD9;    /* Alias for cream (kept for back-compat) */
+  --color-ink: #3F3F3F;          /* Charcoal — body text */
+  --color-maroon: #75001F;       /* Deep wine — brand primary */
+  --color-maroon-deep: #4D0015;  /* Deepest wine — display headings */
+  --color-maroon-soft: #A3002C;  /* Mid maroon — accents */
+  --color-gold: #E0AE6D;         /* Tan — warm accent */
+  --color-gold-deep: #A66D23;    /* Bronze — deep accent */
+  --color-gold-soft: #F2C99E;    /* Lighter tan */
+}
+
+html,
+body {
+  /* Plain cream — the brand pattern is applied ONLY to elements with
+     `.bg-ivory` (see rule below), not to the page background, so the
+     thin spacer strip between the fixed nav and a page's first
+     section reads as flat cream instead of showing the pattern. */
+  background-color: var(--color-ivory);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+html {
+  /* `overflow-x: clip` — NOT `hidden`. The `hidden` value promotes the
+     other axis to `auto`, which makes <html> an implicit scroll container
+     and breaks every `position: sticky` element on the site (filter rail,
+     sticky buy bar, sticky nav). `clip` clips overflow the same way but
+     leaves the scroll container situation alone, so sticky keeps working. */
+  overflow-x: clip;
+  /* Pin the layout to the viewport — prevents an element with intrinsic
+     width (e.g. an unloaded image) from briefly forcing the page wider
+     than the screen during hydration. */
+  max-width: 100vw;
+}
+
+body {
+  font-family: var(--font-sans), system-ui, sans-serif;
+  overflow-x: clip;
+  max-width: 100vw;
+}
+
+/* Brand pattern watermark on ivory sections — see kit page 14.
+   The first layer is a near-opaque ivory wash; the second is the
+   repeating star-flower tile SVG. The wash muffles the pattern to
+   ~7% visibility so it reads as a quiet woven watermark, never as
+   competing decoration. Applied via `.bg-ivory` only so that the
+   page <body> + the spacer below the fixed nav stay plain cream. */
+.bg-ivory {
+  background-color: var(--color-ivory);
+  background-image:
+    linear-gradient(rgba(247, 234, 217, 0.93), rgba(247, 234, 217, 0.93)),
+    url('/brand/pattern-title.svg');
+  background-repeat: repeat, repeat;
+  background-size: auto, 320px auto;
+}
+
+/* Opt-out for surfaces that must stay plain ivory — navbar, product
+   cards, chips/pills. The pattern would look busy at small sizes and
+   visually conflict with the dense merchant grid. Apply alongside
+   `bg-ivory` (or `bg-ivory/N` opacity variants) to suppress. */
+.no-pattern {
+  background-image: none !important;
+}
+
+/* Auto-exclude interactive / form elements from the brand pattern.
+   Buttons, anchor CTAs, inputs, textareas and selects are inherently
+   small functional surfaces — a decorative tile would look busy
+   inside them and (in the case of inputs) actively hurt legibility.
+   Anything that genuinely needs the pattern on a `<button>` /
+   `<a>` would be unusual and can override with an inline style. */
+a.bg-ivory,
+button.bg-ivory,
+input.bg-ivory,
+textarea.bg-ivory,
+select.bg-ivory {
+  background-image: none;
+}
+
+/* All <h1> headings default to the brand display serif (Black Mango).
+   Page heroes, product titles, section headlines all pick this up
+   automatically. h2/h3/h4 stay in Plus Jakarta Sans so dense merchant
+   pages don't get over-designed — add `font-display` to any sub-heading
+   that should also be in the brand serif. */
+h1 {
+  font-family: 'Black Mango', var(--font-display), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+}
+
+/* Forcing rule for the brand display family — guarantees Black Mango
+   wins over any inherited body font (Plus Jakarta Sans) for elements
+   explicitly tagged as display copy. The `!important` is justified
+   because brand identity is non-negotiable: any element with class
+   `font-display`, `text-display`, or `font-serif` MUST render in the
+   brand serif, not inherit body sans. */
+.font-display,
+.text-display,
+.font-serif {
+  font-family: 'Black Mango', var(--font-display), Georgia, serif !important;
+}
+
+::selection {
+  background: #75001F;
+  color: #F7EAD9;
+}
+
+/* Lenis smooth scroll requirements */
+html.lenis,
+html.lenis body {
+  height: auto;
+}
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+.lenis.lenis-smooth [data-lenis-prevent] {
+  overscroll-behavior: contain;
+}
+.lenis.lenis-stopped {
+  overflow: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: var(--color-parchment);
+}
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(180deg, var(--color-gold) 0%, var(--color-maroon) 100%);
+  border-radius: 4px;
+}
+
+/* Display utility — Black Mango (brand primary, luxury serif).
+   Per the official Thridha Varnam kit (2026-06-15). Loaded locally
+   via next/font/local in app/layout.tsx. */
+.text-display {
+  font-family: 'Black Mango', var(--font-display), Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+}
+
+/* Serif utility — same as display now that the brand has a single
+   serif. Old `.text-serif` Cormorant italic is retired. */
+.text-serif {
+  font-family: 'Black Mango', var(--font-display), Georgia, serif;
+  font-weight: 400;
+  text-transform: none;
+}
+
+.eyebrow {
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* Decorative gold hairline */
+.gold-rule {
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(224, 174, 109, 0.0) 0%,
+    rgba(224, 174, 109, 0.6) 50%,
+    rgba(224, 174, 109, 0.0) 100%
+  );
+  height: 1px;
+}
+
+/* Shimmer gold text — brand gold scale */
+.text-shimmer {
+  background: linear-gradient(
+    90deg,
+    #A66D23 0%,
+    #E0AE6D 25%,
+    #F2C99E 50%,
+    #E0AE6D 75%,
+    #A66D23 100%
+  );
+  background-size: 200% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: shimmer 6s ease-in-out infinite;
+}
+
+/* Decorative motif (faint paisley-like radial) — brand gold + wine */
+.paisley-bg {
+  background-image:
+    radial-gradient(ellipse at top, rgba(224, 174, 109, 0.07), transparent 60%),
+    radial-gradient(ellipse at bottom right, rgba(117, 0, 31, 0.05), transparent 55%);
+}
+
+/* Grain texture */
+.grain::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.04;
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 0.1 0 0 0 0 0.05 0 0 0 0 0.02 0 0 0 0.9 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* Image fallback styling — for missing photos, show a beautiful gold/maroon gradient */
+.img-fallback {
+  background: linear-gradient(135deg, #4D0015 0%, #75001F 35%, #A66D23 70%, #E0AE6D 100%);
+  position: relative;
+  overflow: hidden;
+}
+.img-fallback::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 30% 30%, rgba(255, 240, 200, 0.15), transparent 50%),
+    radial-gradient(circle at 70% 80%, rgba(255, 240, 200, 0.10), transparent 50%);
+}
+
+/* Button base */
+.btn-line {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  padding: 1rem 0;
+  cursor: pointer;
+  transition: color 0.4s ease;
+  border: none;
+  background: transparent;
+}
+.btn-line::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 1px;
+  width: 100%;
+  background: currentColor;
+  transform-origin: left;
+  transition: transform 0.6s cubic-bezier(0.7, 0, 0.3, 1);
+}
+.btn-line:hover::after {
+  transform: scaleX(0.4);
+}
+
+.btn-filled {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.75rem;
+  font-family: var(--font-sans), sans-serif;
+  font-size: 0.72rem;
+  letter-spacing: 0.32em;
+  text-transform: uppercase;
+  padding: 1.1rem 2.2rem;
+  cursor: pointer;
+  background: var(--color-ink);
+  color: var(--color-ivory);
+  border: 1px solid var(--color-ink);
+  transition: background 0.5s ease, color 0.5s ease;
+}
+.btn-filled:hover {
+  background: transparent;
+  color: var(--color-ink);
+}
+
+/* Hide scrollbar but keep scroll */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* Toast slide-in animation */
+@keyframes slideInRight {
+  from { transform: translateX(24px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+/* Marquee for shipping ticker */
+.marquee {
+  display: flex;
+  width: max-content;
+  animation: marquee 40s linear infinite;
+}
+@keyframes marquee {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+
+/* Disable text selection on cinematic intro for cleaner feel */
+.no-select {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Reveal helper used by GSAP */
+.reveal {
+  opacity: 0;
+  transform: translateY(40px);
+}
+.split-char {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(60%);
+}
