@@ -14,7 +14,14 @@ import { useAuth } from '@/lib/auth';
 import { useScrollLock } from '@/lib/scroll-lock';
 import { useOrders, type OrderItem as OrderItemRecord } from '@/lib/orders';
 import { useRouter } from 'next/navigation';
-import { couponsApi, calcCouponDiscount, type BackendCoupon } from '@/lib/api';
+import {
+  couponsApi,
+  calcCouponDiscount,
+  razorpayApi,
+  storefrontOrdersApi,
+  type BackendCoupon,
+} from '@/lib/api';
+import { openRazorpayCheckout } from '@/lib/razorpay';
 
 type ShipMethod = 'standard' | 'express';
 type PayMethod = 'upi' | 'card' | 'netbanking' | 'cod';
@@ -151,7 +158,115 @@ export default function CheckoutPopup() {
     router.push(path);
   };
 
-  const onPlaceOrder = (e: FormEvent) => {
+  // Commit the local order record + push to backend (which auto-feeds
+  // Shiprocket) + clear cart + navigate to the right post-payment page.
+  // Shared by the COD and Razorpay flows so history + backend records
+  // stay consistent.
+  const finalizeAndRoute = async (opts: {
+    paid: boolean;
+    ref?: string;
+    razorpay?: { orderId: string; paymentId: string; signature: string };
+  }) => {
+    const orderItems: OrderItemRecord[] = items.map(({ saree, qty }) => ({
+      productId: saree.id,
+      name: saree.name,
+      weave: saree.weave,
+      qty,
+      unitPrice: saree.price,
+      image: getProductHero(saree),
+    }));
+    const order = placeOrder({
+      items: orderItems,
+      itemCount,
+      address: {
+        fullName: selectedAddress!.fullName,
+        phone: selectedAddress!.phone,
+        email: selectedAddress!.email,
+        line1: selectedAddress!.line1,
+        line2: selectedAddress!.line2,
+        city: selectedAddress!.city,
+        state: selectedAddress!.state,
+        pincode: selectedAddress!.pincode,
+        country: selectedAddress!.country,
+      },
+      payMethod,
+      shipMethod,
+      paid: opts.paid,
+      promoCode,
+      subtotal: cartSubtotal,
+      discount,
+      shippingFee,
+      codFee,
+      tax,
+      total,
+    });
+
+    // Fire-and-forget backend persistence + Shiprocket push. We do NOT
+    // await this before navigating — a slow Shiprocket call shouldn't
+    // hold up the customer's thank-you page. If it fails, the admin
+    // panel will still see the order (with shiprocket.status='failed')
+    // and can retry manually.
+    void storefrontOrdersApi
+      .place({
+        id: order.id,
+        customer: order.address.fullName,
+        email: order.address.email,
+        phone: order.address.phone,
+        address: {
+          line1: order.address.line1,
+          line2: order.address.line2,
+          city: order.address.city,
+          state: order.address.state,
+          pincode: order.address.pincode,
+          country: order.address.country,
+        },
+        lineItems: orderItems.map((it) => ({
+          productId: it.productId,
+          name: it.name,
+          sku: it.productId,
+          qty: it.qty,
+          unitPrice: it.unitPrice,
+        })),
+        itemCount: order.itemCount,
+        payMethod: order.payMethod,
+        shipMethod: order.shipMethod,
+        paid: order.paid,
+        promoCode: order.promoCode,
+        subtotal: order.subtotal,
+        discount: order.discount,
+        shippingFee: order.shippingFee,
+        codFee: order.codFee,
+        tax: order.tax,
+        total: order.total,
+        razorpay: opts.razorpay,
+      })
+      .catch((err) => {
+        console.warn('[checkout] backend order persistence failed', err);
+      });
+
+    clearCart();
+    // COD skips the payment-success interstitial — there's no payment
+    // to confirm — and goes straight to the order Thank-You page.
+    if (payMethod === 'cod') {
+      const qs = new URLSearchParams({
+        id: order.id,
+        email: order.address.email,
+        phone: order.address.phone,
+        ship: order.shipMethod,
+      });
+      closeAllAndGo(`/order/thank-you?${qs.toString()}`);
+    } else {
+      const qs = new URLSearchParams({
+        order: order.id,
+        method: order.payMethod,
+        amount: String(order.total),
+        ref: opts.ref || `TXN${Date.now().toString().slice(-8)}`,
+      });
+      closeAllAndGo(`/payment/success?${qs.toString()}`);
+    }
+  };
+
+  const onPlaceOrder = async (e: FormEvent) => {
     e.preventDefault();
     if (placing) return;
     // Defence-in-depth: if the user reached the popup without being
@@ -168,71 +283,88 @@ export default function CheckoutPopup() {
       return;
     }
     setPlacing(true);
-    // Simulated payment latency. With a real gateway, this is where we'd
-    // open Razorpay / Stripe and wait for their callback to drive routing.
-    window.setTimeout(() => {
-      const orderItems: OrderItemRecord[] = items.map(({ saree, qty }) => ({
-        productId: saree.id,
-        name: saree.name,
-        weave: saree.weave,
-        qty,
-        unitPrice: saree.price,
-        image: getProductHero(saree),
-      }));
-      const order = placeOrder({
-        items: orderItems,
-        itemCount,
-        address: {
-          fullName: selectedAddress.fullName,
-          phone: selectedAddress.phone,
-          email: selectedAddress.email,
-          line1: selectedAddress.line1,
-          line2: selectedAddress.line2,
-          city: selectedAddress.city,
-          state: selectedAddress.state,
-          pincode: selectedAddress.pincode,
-          country: selectedAddress.country,
-        },
-        payMethod,
-        shipMethod,
-        // COD orders are unpaid until delivery. Everything else is treated
-        // as paid the moment we land back from the simulated gateway.
-        paid: payMethod !== 'cod',
-        promoCode,
-        subtotal: cartSubtotal,
-        discount,
-        shippingFee,
-        codFee,
-        tax,
-        total,
-      });
-      clearCart();
+
+    if (payMethod === 'cod') {
+      await finalizeAndRoute({ paid: false });
       setPlacing(false);
-      // COD skips the payment-success interstitial — there's no payment
-      // to confirm — and goes straight to the order Thank-You page.
-      if (payMethod === 'cod') {
-        const qs = new URLSearchParams({
-          id: order.id,
-          email: order.address.email,
-          phone: order.address.phone,
-          ship: order.shipMethod,
-        });
-        closeAllAndGo(`/order/thank-you?${qs.toString()}`);
-      } else {
-        const qs = new URLSearchParams({
-          order: order.id,
-          method: order.payMethod,
-          amount: String(order.total),
-          ref: `TXN${Date.now().toString().slice(-8)}`,
-        });
-        closeAllAndGo(`/payment/success?${qs.toString()}`);
-      }
-    }, 900);
+      return;
+    }
+
+    // ── Razorpay flow ──────────────────────────────────────────────────
+    // 1. Ask the backend to create a Razorpay order (server-side, uses
+    //    KEY_SECRET). 2. Open Checkout with the returned order_id.
+    // 3. On success, verify the signature server-side, THEN create the
+    //    local order and go to /payment/success.
+    // 4. On failure or dismissal, leave the cart intact and go to
+    //    /payment/cancelled — no order record is created.
+    try {
+      const rzpKey = process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID;
+      const order = await razorpayApi.createOrder({
+        amount: total,
+        receipt: `tv_${Date.now()}`,
+        notes: {
+          customer: selectedAddress.fullName,
+          email: selectedAddress.email,
+          method: payMethod,
+        },
+      });
+      await openRazorpayCheckout({
+        key: order.key_id || rzpKey || '',
+        amount: order.amount,
+        currency: order.currency || 'INR',
+        name: 'Thridha Varnam',
+        description: `${itemCount} item${itemCount === 1 ? '' : 's'}`,
+        image: '/brand/logomark.svg',
+        order_id: order.id,
+        prefill: {
+          name: selectedAddress.fullName,
+          email: selectedAddress.email,
+          contact: selectedAddress.phone,
+        },
+        notes: { method: payMethod },
+        theme: { color: '#6b1a2b' },
+        onSuccess: async (resp) => {
+          try {
+            await razorpayApi.verify({
+              razorpay_order_id: resp.razorpay_order_id,
+              razorpay_payment_id: resp.razorpay_payment_id,
+              razorpay_signature: resp.razorpay_signature,
+              customer: selectedAddress.fullName,
+              amount: total,
+              method: payMethod,
+            });
+            await finalizeAndRoute({
+              paid: true,
+              ref: resp.razorpay_payment_id,
+              razorpay: {
+                orderId: resp.razorpay_order_id,
+                paymentId: resp.razorpay_payment_id,
+                signature: resp.razorpay_signature,
+              },
+            });
+          } catch (err) {
+            const reason = err instanceof Error ? err.message : 'Signature verification failed';
+            closeAllAndGo(`/payment/cancelled?reason=${encodeURIComponent(reason)}`);
+          } finally {
+            setPlacing(false);
+          }
+        },
+        onFailure: (reason) => {
+          setPlacing(false);
+          closeAllAndGo(`/payment/cancelled?reason=${encodeURIComponent(reason)}`);
+        },
+        onDismiss: () => {
+          setPlacing(false);
+          closeAllAndGo('/payment/cancelled?reason=cancelled');
+        },
+      });
+    } catch (err) {
+      setPlacing(false);
+      const reason = err instanceof Error ? err.message : 'Unable to start payment';
+      closeAllAndGo(`/payment/cancelled?reason=${encodeURIComponent(reason)}`);
+    }
   };
 
-  // Simulates the user clicking back on the payment gateway — closes the
-  // popup and lands on /payment/cancelled. With a real gateway this is
-  // the redirect URL the gateway calls when the user aborts payment.
   const onCancelPayment = () => {
     closeAllAndGo('/payment/cancelled?reason=cancelled');
   };

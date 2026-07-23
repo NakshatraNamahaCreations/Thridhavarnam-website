@@ -3,43 +3,37 @@
 import { useRef, useState, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { SAREES, formatINR, TIERS, productSlug } from '@/lib/sarees';
+import { type Saree, formatINR, TIERS, productSlug } from '@/lib/sarees';
+import { productsApi, backendToSaree } from '@/lib/api';
 import WishlistButton from '@/components/shop/WishlistButton';
 
-// Kept at 10 so the desktop view of 5-per-row scrolls cleanly to a second
-// page of 5 without showing the previous page's cards again. (At 8, one
-// page-scroll was landing the rail at the end and visibly repeating the
-// last two cards from page 1.)
-const trendingIds = [
-  'banarasi-jamawar',
-  'mysore-tara',
-  'mangalagiri-megha',
-  'patola-rasleela',
-  'pochampally-aakash',
-  'mixedpattu-katha',
-  'banarasi-saanjh',
-  'kanjivaram-mayura',
-  'gadwal-konark',
-  'fancy-cocktail',
-];
-
-const stockLeft: Record<string, number> = {
-  'banarasi-jamawar': 2,
-  'mysore-tara': 4,
-  'mangalagiri-megha': 1,
-  'patola-rasleela': 1,
-  'pochampally-aakash': 6,
-  'mixedpattu-katha': 3,
-  'banarasi-saanjh': 5,
-  'kanjivaram-mayura': 2,
-  'gadwal-konark': 2,
-  'fancy-cocktail': 1,
-};
+type FastItem = { saree: Saree; stock: number };
 
 export default function PressStrip() {
   const railRef = useRef<HTMLDivElement | null>(null);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(true);
+  const [items, setItems] = useState<FastItem[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    productsApi
+      .list()
+      .then((rows) => {
+        if (cancelled) return;
+        const fast = rows
+          .filter((p) => Array.isArray(p.badges) && p.badges.includes('fast'))
+          .map<FastItem>((p) => ({
+            saree: backendToSaree(p),
+            stock: typeof p.stock === 'number' ? p.stock : 5,
+          }));
+        setItems(fast);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const updateButtons = useCallback(() => {
     const el = railRef.current;
@@ -58,20 +52,15 @@ export default function PressStrip() {
       el.removeEventListener('scroll', updateButtons);
       window.removeEventListener('resize', updateButtons);
     };
-  }, [updateButtons]);
+  }, [updateButtons, items.length]);
 
   const scrollBy = (dir: 1 | -1) => {
     const el = railRef.current;
     if (!el) return;
-    // Each card uses calc((100% - gaps)/N) so the rail always shows
-    // exactly N full cards — advancing by clientWidth lands on the
-    // next page cleanly.
     el.scrollBy({ left: dir * (el.clientWidth + 16), behavior: 'smooth' });
   };
 
-  const items = trendingIds
-    .map((id) => SAREES.find((s) => s.id === id))
-    .filter((s): s is (typeof SAREES)[number] => Boolean(s));
+  if (!items.length) return null;
 
   return (
     <section className="bg-ivory py-10 md:py-14">
@@ -121,9 +110,8 @@ export default function PressStrip() {
           ref={railRef}
           className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-2"
         >
-          {items.map((saree) => {
-            const stock = stockLeft[saree.id] ?? 5;
-            const tier = TIERS[saree.tier];
+          {items.map(({ saree, stock }) => {
+            const tier = saree.tier in TIERS ? TIERS[saree.tier] : null;
             return (
               <Link
                 key={saree.id}
@@ -143,17 +131,16 @@ export default function PressStrip() {
                     <div className="absolute top-2.5 left-2.5 bg-maroon text-ivory px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wider rounded-sm">
                       Only {stock} Left
                     </div>
-                  ) : (
+                  ) : tier ? (
                     <div className="absolute top-2.5 left-2.5 bg-ivory/95 no-pattern backdrop-blur-sm text-ink px-2 py-1 text-[0.65rem] font-semibold uppercase tracking-wide rounded-sm">
                       {tier.title}
                     </div>
-                  )}
+                  ) : null}
                   <WishlistButton
                     productId={saree.id}
                     className="absolute bottom-2.5 right-2.5 w-9 h-9"
                     size={14}
                   />
-                  {/* Brand watermark — cream T+V monogram, bottom-left corner. */}
                   <img
                     src="/brand/logomark-cream.svg"
                     alt=""

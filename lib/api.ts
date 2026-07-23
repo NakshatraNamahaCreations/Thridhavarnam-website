@@ -9,8 +9,9 @@
 // the public GET routes we added locally, so it returns 401.
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:5000/api';
+  // 'http://localhost:5000/api';
   // 'https://sareeebackend.onrender.com/api';
+  'https://thridhavarnam-backend.onrender.com';
 
 // Shape returned by GET /api/products and /api/products/:id — kept loose
 // (all fields optional) because older documents seeded before the accordion
@@ -160,6 +161,100 @@ export const occasionsApi = {
 
 export const couponsApi = {
   list: () => request<BackendCoupon[]>('/coupons'),
+};
+
+export type RazorpayOrderResponse = {
+  id: string;              // Razorpay order id (order_xxx)
+  entity: 'order';
+  amount: number;          // paise
+  currency: string;
+  receipt?: string;
+  status: string;
+  key_id: string;          // echoed back so the client can open Checkout
+};
+
+export const razorpayApi = {
+  // amount is in INR rupees; the backend converts to paise for Razorpay.
+  createOrder: (payload: { amount: number; receipt?: string; notes?: Record<string, string> }) =>
+    request<RazorpayOrderResponse>('/payments/razorpay/order', {
+      method: 'POST',
+      body: payload,
+    }),
+  verify: (payload: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+    orderId?: string;
+    customer?: string;
+    amount?: number;
+    method?: string;
+  }) =>
+    request<{ ok: boolean; razorpay_payment_id: string; razorpay_order_id: string }>(
+      '/payments/razorpay/verify',
+      { method: 'POST', body: payload },
+    ),
+};
+
+// Payload shape POSTed to the backend after a successful checkout — the
+// backend persists it and auto-pushes to Shiprocket.
+export type StorefrontOrderPayload = {
+  id: string;
+  customer: string;
+  email: string;
+  phone: string;
+  address: {
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+  };
+  lineItems: {
+    productId: string;
+    name: string;
+    sku?: string;
+    qty: number;
+    unitPrice: number;
+  }[];
+  itemCount: number;
+  payMethod: 'upi' | 'card' | 'netbanking' | 'cod';
+  shipMethod: 'standard' | 'express';
+  paid: boolean;
+  promoCode: string | null;
+  subtotal: number;
+  discount: number;
+  shippingFee: number;
+  codFee: number;
+  tax: number;
+  total: number;
+  razorpay?: {
+    orderId: string;
+    paymentId: string;
+    signature: string;
+  };
+};
+
+export type StorefrontOrderResponse = {
+  id: string;
+  status: string;
+  payment: string;
+  shiprocket: {
+    orderId: string;
+    shipmentId: string;
+    awbCode: string;
+    courier: string;
+    status: 'created' | 'failed' | 'pending';
+    error?: string;
+  } | null;
+};
+
+export const storefrontOrdersApi = {
+  place: (payload: StorefrontOrderPayload) =>
+    request<StorefrontOrderResponse>('/storefront/orders', {
+      method: 'POST',
+      body: payload,
+    }),
 };
 
 export const authApi = {
