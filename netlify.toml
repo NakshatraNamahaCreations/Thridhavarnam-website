@@ -10,4 +10,4 @@
   NODE_VERSION = "20"
   # Points the storefront at the deployed backend. Override in Site config
   # → Env vars if you need to swap environments without a redeploy.
-  NEXT_PUBLIC_API_URL = "https://thridhavarnam-backend.onrender.com/api"
+  NEXT_PUBLIC_API_URL = "https://api.thridhavarnam.com/api"

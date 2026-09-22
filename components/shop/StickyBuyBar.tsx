@@ -31,6 +31,7 @@ export default function StickyBuyBar({
   }, []);
 
   const discount = mrp ? Math.round(((mrp - saree.price) / mrp) * 100) : 0;
+  const outOfStock = typeof saree.stock === 'number' && saree.stock <= 0;
 
   return (
     <div
@@ -62,15 +63,26 @@ export default function StickyBuyBar({
             )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => addToCart(saree.id, 1)}
-          className="shrink-0 border-2 border-gray-900 text-gray-900 bg-white px-5 lg:px-8 py-3 text-sm font-bold uppercase tracking-wide hover:bg-gray-900 hover:text-white transition-colors flex items-center gap-2"
-        >
-          <span>Add to Cart</span>
-          <span className="hidden sm:inline">·</span>
-          <span className="hidden sm:inline tabular-nums">{formatINR(saree.price)}</span>
-        </button>
+        {outOfStock ? (
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="shrink-0 border-2 border-gray-300 text-gray-600 bg-gray-200 px-5 lg:px-8 py-3 text-sm font-bold uppercase tracking-wide cursor-not-allowed"
+          >
+            Out of Stock
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={() => addToCart(saree.id, 1)}
+            className="shrink-0 border-2 border-gray-900 text-gray-900 bg-white px-5 lg:px-8 py-3 text-sm font-bold uppercase tracking-wide hover:bg-gray-900 hover:text-white transition-colors flex items-center gap-2"
+          >
+            <span>Add to Cart</span>
+            <span className="hidden sm:inline">·</span>
+            <span className="hidden sm:inline tabular-nums">{formatINR(saree.price)}</span>
+          </button>
+        )}
       </div>
     </div>
   );

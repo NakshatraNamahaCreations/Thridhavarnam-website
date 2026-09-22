@@ -40,6 +40,7 @@ function ProductCard({ saree, badge }: { saree: Saree; badge?: string }) {
     saree.mrp > saree.price
       ? Math.round(((saree.mrp - saree.price) / saree.mrp) * 100)
       : 0;
+  const outOfStock = typeof saree.stock === 'number' && saree.stock <= 0;
 
   return (
     <Link
@@ -53,14 +54,21 @@ function ProductCard({ saree, badge }: { saree: Saree; badge?: string }) {
           alt={saree.name}
           fill
           sizes="(max-width: 640px) 46vw, (max-width: 768px) 46vw, (max-width: 1024px) 30vw, (max-width: 1280px) 23vw, 18vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          className={`object-cover transition-transform duration-500 group-hover:scale-105 ${outOfStock ? 'opacity-60 grayscale' : ''}`}
         />
-        {badge && (
+        {outOfStock && (
+          <div className="absolute top-2.5 left-2.5 z-20 pointer-events-none">
+            <span className="bg-black/85 text-ivory px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider rounded-sm">
+              Out of Stock
+            </span>
+          </div>
+        )}
+        {badge && !outOfStock && (
           <div className="absolute top-2.5 left-2.5 bg-maroon text-ivory px-2.5 py-1 text-[0.65rem] font-bold uppercase tracking-wider rounded-sm">
             {badge}
           </div>
         )}
-        {discount > 0 && (
+        {discount > 0 && !outOfStock && (
           <div className="absolute top-2.5 right-2.5 bg-maroon-deep text-ivory px-2 py-1 text-[0.65rem] font-bold rounded-sm">
             {discount}% OFF
           </div>

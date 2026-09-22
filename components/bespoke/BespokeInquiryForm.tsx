@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { enquiriesApi } from '@/lib/api';
 
 const WEAVES = [
   'Open to suggestions',
@@ -93,21 +94,33 @@ export default function BespokeInquiryForm() {
       return;
     }
 
-    setSubmit({ kind: 'submitting' });
-    try {
-      // No backend yet — persist locally so the inquiry survives a reload
-      // and the user has a visible reference number. Replace with a real
-      // POST when the backend exists.
-      const ref = generateRef();
-      saveLocally({ ...form, ref, createdAt: Date.now() });
-      await new Promise((r) => setTimeout(r, 600)); // brief delay so the spinner reads
-      setSubmit({ kind: 'success', ref });
-    } catch {
-      setSubmit({
-        kind: 'error',
-        message: 'Something went wrong. Please try again or email support@thridhavarnam.com.',
-      });
-    }
+  setSubmit({ kind: 'submitting' });
+
+try {
+  const response = await enquiriesApi.create({
+    name: form.name.trim(),
+    email: form.email.trim(),
+    phone: form.phone.trim(),
+    weave: form.weave,
+    occasion: form.occasion,
+    budget: form.budget,
+    timeline: form.timeline,
+    notes: form.notes.trim(),
+  });
+
+  setSubmit({
+    kind: 'success',
+    ref: response.ref,
+  });
+} catch (error) {
+  setSubmit({
+    kind: 'error',
+    message:
+      error instanceof Error
+        ? error.message
+        : 'Something went wrong. Please try again.',
+  });
+}
   };
 
   if (submit.kind === 'success') {

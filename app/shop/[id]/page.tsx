@@ -6,6 +6,23 @@ import ProductDetail from '@/components/shop/ProductDetail';
 
 type Props = { params: Promise<{ id: string }> };
 
+// Enumerate every product URL at build time so `output: 'export'` can emit
+// a static HTML file per product. We emit both the slug (new default) and
+// the raw backend id (SAR-1045) so old bookmarks keep resolving.
+export async function generateStaticParams() {
+  try {
+    const list = await productsApi.list();
+    const params = new Set<string>();
+    for (const p of list) {
+      if (p.name) params.add(slugify(p.name));
+      if (p.id) params.add(p.id);
+    }
+    return Array.from(params, (id) => ({ id }));
+  } catch {
+    return [];
+  }
+}
+
 // Resolve a URL segment to a backend product. The segment can be either:
 //   - the slugified product name ("mayura-kanjivaram")   ← new default
 //   - the raw backend id ("SAR-1045")                     ← old bookmarks

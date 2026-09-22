@@ -2,10 +2,11 @@
 
 import Image from 'next/image';
 import Link from 'next/link';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
-import { SAREES, formatINR, TIERS, productSlug } from '@/lib/sarees';
+import { SAREES, formatINR, TIERS, productSlug, type Saree } from '@/lib/sarees';
 import { useShop } from '@/lib/shop-store';
+import { productsApi, backendToSaree } from '@/lib/api';
 
 // Featured hero sarees — actual products, not lifestyle vibes.
 // Each slide is anchored to a real id from lib/sarees.ts so the price,
@@ -43,9 +44,48 @@ const DEFAULT_OBJECT_POSITION = '50% 25%';
 
 export default function Hero() {
   const { addToCart, toggleWishlist, inWishlist, hydrated } = useShop();
-  const slides = featuredIds
-    .map((id) => SAREES.find((s) => s.id === id))
-    .filter((s): s is (typeof SAREES)[number] => Boolean(s));
+
+  // Live overrides from the backend, keyed by product id. Values from
+  // here replace the static SAREES fields (price, name, weave, story,
+  // stock…) so admin edits show up on the banner without a rebuild.
+  // Undefined until the fetch resolves — the slide falls back to the
+  // static entry so the banner still paints during SSR / cold load.
+  const [liveById, setLiveById] = useState<Record<string, Saree>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    productsApi
+      .list()
+      .then((rows) => {
+        if (cancelled) return;
+        const map: Record<string, Saree> = {};
+        for (const p of rows) {
+          const s = backendToSaree(p);
+          if (s.id) map[s.id] = s;
+        }
+        setLiveById(map);
+      })
+      .catch(() => {
+        // Silent — the slides fall back to the static SAREES entries.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const slides: Saree[] = useMemo(() => {
+    return featuredIds
+      .map((id) => {
+        const staticEntry = SAREES.find((s) => s.id === id);
+        const live = liveById[id];
+        if (!staticEntry && !live) return null;
+        if (!live) return staticEntry!;
+        // Merge: static provides display fallbacks (image path, palette,
+        // details), live overwrites the fields the admin actually edits.
+        return { ...(staticEntry ?? ({} as Saree)), ...live };
+      })
+      .filter((s): s is Saree => Boolean(s));
+  }, [liveById]);
 
   const [active, setActive] = useState(0);
   const [adding, setAdding] = useState<string | null>(null);

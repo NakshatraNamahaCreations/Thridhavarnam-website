@@ -33,10 +33,10 @@ export default function BrandVerse() {
           lang="sa"
           className="mt-8 md:mt-10 text-center font-display text-lg md:text-xl lg:text-[1.55rem] leading-[1.85] text-ink/90"
         >
-          <div>वर्णानां शोभिता नारी,</div>
-          <div>संस्कृतेः दिव्यरूपिणी।</div>
-          <div>त्रिधा वर्णं धारयन्ती,</div>
-          <div>सौन्दर्यं लोकभूषणम्॥</div>
+          <div>ವರ್ಣಾನಾಂ ಶೋಭಿತಾ ನಾರಿ,</div>
+          <div>ಸಂಸ್ಕೃತೇರ್ ದಿವ್ಯರೂಪಿಣೀ।</div>
+          <div>ತ್ರಿಧಾ ವರ್ಣಂ ಧಾರಯಂತೀ,</div>
+          <div>ಸೌಂದರ್ಯಂ ಲೋಕಭೂಷಣಂ॥</div>
         </div>
 
         {/* Ornamental divider */}
@@ -67,7 +67,7 @@ export default function BrandVerse() {
             href="/about"
             className="text-[0.7rem] font-bold tracking-[0.22em] uppercase text-maroon hover:text-maroon-deep underline underline-offset-4 decoration-maroon/30 hover:decoration-maroon-deep"
           >
-            Read the meaning in Telugu &amp; Kannada
+            Read the meaning in Telugu &amp; Sanskrit
           </Link>
         </div>
       </div>

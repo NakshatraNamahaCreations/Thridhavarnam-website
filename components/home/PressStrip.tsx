@@ -112,6 +112,7 @@ export default function PressStrip() {
         >
           {items.map(({ saree, stock }) => {
             const tier = saree.tier in TIERS ? TIERS[saree.tier] : null;
+            const outOfStock = stock <= 0;
             return (
               <Link
                 key={saree.id}
@@ -125,9 +126,15 @@ export default function PressStrip() {
                     alt={saree.name}
                     fill
                     sizes="(max-width: 640px) 46vw, (max-width: 768px) 46vw, (max-width: 1024px) 30vw, (max-width: 1280px) 23vw, 18vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    className={`object-cover transition-transform duration-500 group-hover:scale-105 ${outOfStock ? 'opacity-60 grayscale' : ''}`}
                   />
-                  {stock <= 3 ? (
+                  {outOfStock ? (
+                    <div className="absolute top-2.5 left-2.5 z-20 pointer-events-none">
+                      <span className="bg-black/85 text-ivory px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wider rounded-sm">
+                        Out of Stock
+                      </span>
+                    </div>
+                  ) : stock <= 3 ? (
                     <div className="absolute top-2.5 left-2.5 bg-maroon text-ivory px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wider rounded-sm">
                       Only {stock} Left
                     </div>

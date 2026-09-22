@@ -11,7 +11,7 @@ const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
   // 'http://localhost:5000/api';
   // 'https://sareeebackend.onrender.com/api';
-  'https://thridhavarnam-backend.onrender.com';
+  'https://api.thridhavarnam.com/api';
 
 // Shape returned by GET /api/products and /api/products/:id — kept loose
 // (all fields optional) because older documents seeded before the accordion
@@ -146,6 +146,23 @@ export type BackendUser = {
   dob?: string;
 };
 
+export type BackendEnquiry = {
+  id?: string;
+  _id?: string;
+  ref: string;
+  name: string;
+  email: string;
+  phone: string;
+  weave?: string;
+  occasion?: string;
+  budget?: string;
+  timeline?: string;
+  notes?: string;
+  status?: 'new' | 'contacted' | 'in-progress' | 'converted' | 'closed';
+  createdAt?: string;
+  updatedAt?: string;
+};
+
 export const productsApi = {
   list: () => request<BackendProduct[]>('/products'),
   get: (id: string) => request<BackendProduct>(`/products/${encodeURIComponent(id)}`),
@@ -161,6 +178,23 @@ export const occasionsApi = {
 
 export const couponsApi = {
   list: () => request<BackendCoupon[]>('/coupons'),
+};
+
+export const enquiriesApi = {
+  create: (payload: {
+    name: string;
+    email: string;
+    phone: string;
+    weave: string;
+    occasion: string;
+    budget: string;
+    timeline: string;
+    notes: string;
+  }) =>
+    request<BackendEnquiry>('/enquiries', {
+      method: 'POST',
+      body: payload,
+    }),
 };
 
 export type RazorpayOrderResponse = {
@@ -332,6 +366,7 @@ export function backendToSaree(p: BackendProduct): Saree {
     tier: (p.occasion ?? '') as Tier,
     occasion: p.occasion ?? '',
     flags: Array.isArray(p.flags) ? p.flags : [],
+    stock: typeof p.stock === 'number' ? p.stock : undefined,
     price: typeof p.price === 'number' ? p.price : 0,
     mrp: typeof p.mrp === 'number' ? p.mrp : 0,
     badges,

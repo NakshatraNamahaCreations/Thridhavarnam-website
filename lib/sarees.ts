@@ -45,6 +45,11 @@ export type Saree = {
   occasion?: string;
   // Homepage / nav curation flags — 'bestseller' | 'new_in' | 'sale'.
   flags?: string[];
+  // Live inventory count from the backend. `undefined` means "unknown"
+  // (e.g. static demo entries in this file) and is treated as in-stock.
+  // 0 or negative → out of stock (card shows OOS ribbon, detail page
+  // disables Add-to-Cart / Buy-It-Now).
+  stock?: number;
   // Optional gallery sourced from the backend admin panel. Each entry pairs
   // a URL / data URL with a colour label; the storefront groups colourway
   // swatches by unique colour and filters the gallery to matching images.
@@ -853,15 +858,15 @@ export const STANDARD_COLORWAYS: Colorway[] = [
   { id: 'mint', name: 'Mint', hex: '#34D399' },
   { id: 'green', name: 'Green', hex: '#16A34A' },
   { id: 'olive', name: 'Olive', hex: '#65A30D' },
-  { id: 'forest', name: 'Forest', hex: '#166534' },
+  { id: 'forest', name: 'Dark Green', hex: '#166534' },
   // Blue-greens
   { id: 'teal', name: 'Teal', hex: '#0D9488' },
   { id: 'peacock', name: 'Peacock', hex: '#0E7490' },
   // Blues
   { id: 'sky', name: 'Sky Blue', hex: '#0EA5E9' },
   { id: 'blue', name: 'Blue', hex: '#2563EB' },
-  { id: 'navy', name: 'Navy', hex: '#1E40AF' },
-  { id: 'midnight', name: 'Midnight', hex: '#1E1B4B' },
+  { id: 'navy', name: 'Navy Blue', hex: '#1E40AF' },
+  { id: 'midnight', name: 'Dark Blue', hex: '#1E1B4B' },
   // Purples
   { id: 'lavender', name: 'Lavender', hex: '#C4B5FD' },
   { id: 'purple', name: 'Purple', hex: '#9333EA' },

@@ -29,6 +29,7 @@ export default function ProductCard({
 }) {
   const { mrp, badges } = saree;
   const discount = mrp ? Math.round(((mrp - saree.price) / mrp) * 100) : 0;
+  const outOfStock = typeof saree.stock === 'number' && saree.stock <= 0;
 
   return (
     <Link href={`/shop/${productSlug(saree)}`} className="group block bg-white">
@@ -39,10 +40,18 @@ export default function ProductCard({
           fill
           priority={priority}
           sizes="(max-width: 768px) 50vw, (max-width: 1280px) 28vw, 22vw"
-          className="object-cover transition-transform duration-500 group-hover:scale-105"
+          className={`object-cover transition-transform duration-500 group-hover:scale-105 ${outOfStock ? 'opacity-60 grayscale' : ''}`}
         />
 
-        {discount > 0 && (
+        {outOfStock && (
+          <div className="absolute top-2 left-2 z-20 pointer-events-none">
+            <span className="bg-black/85 text-white px-2 py-0.5 text-[0.65rem] font-bold uppercase tracking-wide">
+              Out of Stock
+            </span>
+          </div>
+        )}
+
+        {discount > 0 && !outOfStock && (
           <div className="absolute top-2 left-2 bg-[#75001F] text-white px-2 py-0.5 text-[0.65rem] font-bold tracking-wide z-10">
             {discount}% OFF
           </div>
@@ -76,7 +85,7 @@ export default function ProductCard({
           </div>
         )}
 
-        {showAddToBag && (
+        {showAddToBag && !outOfStock && (
           <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none z-20">
             <div className="pointer-events-auto">
               <AddToCartButton

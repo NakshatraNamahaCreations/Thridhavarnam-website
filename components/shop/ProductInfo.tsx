@@ -33,11 +33,13 @@ export default function ProductInfo({
   const { openLogin } = useLoginModal();
   const { user, hydrated: authHydrated } = useAuth();
 
+  const outOfStock = typeof saree.stock === 'number' && saree.stock <= 0;
+
   // Express-checkout: drop the saree into the cart (if not already there)
   // and open the checkout popup. Gated — opens the login modal first if
   // the user isn't signed in, then resumes via the post-login callback.
   const handleBuyItNow = () => {
-    if (!authHydrated) return;
+    if (!authHydrated || outOfStock) return;
     const proceed = () => {
       if (!inCart(saree.id)) addToCart(saree.id, 1);
       openCheckout();
@@ -249,22 +251,35 @@ export default function ProductInfo({
 
       {/* CTAs */}
       <div className="mt-5 grid gap-3">
-        <button
-          type="button"
-          onClick={() => addToCart(saree.id, 1)}
-          className="w-full border-2 border-gray-900 text-gray-900 bg-white py-3.5 text-sm font-bold uppercase tracking-wide hover:bg-gray-900 hover:text-white transition-colors flex items-center justify-center gap-3"
-        >
-          <span>Add to Cart</span>
-          <span className="w-1 h-1 rounded-full bg-current" />
-          <span className="tabular-nums">{formatINR(total)}</span>
-        </button>
-        <button
-          type="button"
-          onClick={handleBuyItNow}
-          className="w-full bg-[#4D0015] text-white py-3.5 text-sm font-bold uppercase tracking-wide hover:bg-[#75001F] transition-colors"
-        >
-          Buy It Now
-        </button>
+        {outOfStock ? (
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            className="w-full bg-gray-200 text-gray-600 py-3.5 text-sm font-bold uppercase tracking-wide cursor-not-allowed border-2 border-gray-300"
+          >
+            Out of Stock
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => addToCart(saree.id, 1)}
+              className="w-full border-2 border-gray-900 text-gray-900 bg-white py-3.5 text-sm font-bold uppercase tracking-wide hover:bg-gray-900 hover:text-white transition-colors flex items-center justify-center gap-3"
+            >
+              <span>Add to Cart</span>
+              <span className="w-1 h-1 rounded-full bg-current" />
+              <span className="tabular-nums">{formatINR(total)}</span>
+            </button>
+            <button
+              type="button"
+              onClick={handleBuyItNow}
+              className="w-full bg-[#4D0015] text-white py-3.5 text-sm font-bold uppercase tracking-wide hover:bg-[#75001F] transition-colors"
+            >
+              Buy It Now
+            </button>
+          </>
+        )}
       </div>
 
       {/* Viewer note */}

@@ -113,6 +113,7 @@ export default function Featured() {
               saree.mrp > saree.price
                 ? Math.round(((saree.mrp - saree.price) / saree.mrp) * 100)
                 : 0;
+            const outOfStock = typeof saree.stock === 'number' && saree.stock <= 0;
             return (
               <Link
                 key={saree.id}
@@ -125,12 +126,21 @@ export default function Featured() {
                     alt={saree.name}
                     fill
                     sizes="(max-width: 768px) 50vw, 25vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
+                    className={`object-cover transition-transform duration-500 group-hover:scale-105 ${outOfStock ? 'opacity-60 grayscale' : ''}`}
                   />
-                  <div className="absolute top-2.5 left-2.5 bg-ivory/95 no-pattern backdrop-blur-sm px-2 py-1 text-[0.65rem] font-semibold text-ink uppercase tracking-wide rounded-sm">
-                    {tierTitle || saree.weave}
-                  </div>
-                  {discount > 0 && (
+                  {outOfStock && (
+                    <div className="absolute top-2.5 left-2.5 z-20 pointer-events-none">
+                      <span className="bg-black/85 text-ivory px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wider rounded-sm">
+                        Out of Stock
+                      </span>
+                    </div>
+                  )}
+                  {!outOfStock && (
+                    <div className="absolute top-2.5 left-2.5 bg-ivory/95 no-pattern backdrop-blur-sm px-2 py-1 text-[0.65rem] font-semibold text-ink uppercase tracking-wide rounded-sm">
+                      {tierTitle || saree.weave}
+                    </div>
+                  )}
+                  {discount > 0 && !outOfStock && (
                     <div className="absolute top-2.5 right-2.5 bg-maroon-deep text-ivory px-2 py-1 text-[0.65rem] font-bold rounded-sm">
                       {discount}% OFF
                     </div>
@@ -149,17 +159,19 @@ export default function Featured() {
                     className="absolute bottom-2.5 left-2.5 w-5 h-5 md:w-6 md:h-6 opacity-75 pointer-events-none select-none z-10"
                   />
                   {/* Hover Add-to-Bag bar */}
-                  <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
-                    <div className="pointer-events-auto">
-                      <AddToCartButton
-                        productId={saree.id}
-                        variant="primary"
-                        className="w-full !px-3 !py-2.5"
-                      >
-                        Add to Bag
-                      </AddToCartButton>
+                  {!outOfStock && (
+                    <div className="absolute inset-x-0 bottom-0 px-2.5 pb-2.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none">
+                      <div className="pointer-events-auto">
+                        <AddToCartButton
+                          productId={saree.id}
+                          variant="primary"
+                          className="w-full !px-3 !py-2.5"
+                        >
+                          Add to Bag
+                        </AddToCartButton>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 <div className="p-3 md:p-3.5">
                   <div className="text-[0.7rem] text-ink/55 font-medium mb-1">
