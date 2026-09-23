@@ -1,10 +1,10 @@
 # Netlify deploy config for the Thridhavarnam storefront (Next.js 14).
-# Site is built with `output: 'export'` so `next build` emits a fully static
-# site to `out/`. Netlify serves those files directly — no SSR functions.
+# The @netlify/plugin-nextjs plugin (auto-installed by Netlify) handles
+# the SSR + static hybrid output — no rewrite rules needed for App Router.
 
 [build]
   command = "npm run build"
-  publish = "out"
+  publish = ".next"
 
 [build.environment]
   NODE_VERSION = "20"

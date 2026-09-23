@@ -77,17 +77,16 @@ function isLinkActive(
   return true;
 }
 
-// Static prerender (`next build` with output:'export') requires every
-// component that calls useSearchParams() to sit inside a <Suspense>
-// boundary. Previously the fallback was `null` — which meant the navbar
-// was completely missing from the prerendered HTML and only appeared
-// once the client JS hydrated. On a slow first paint that read as
-// "navbar loading 40s late".
+// Any component that calls useSearchParams() must sit inside a
+// <Suspense> boundary in the App Router. Previously the fallback was
+// `null`, which meant the navbar was completely missing from the
+// prerendered HTML and only appeared once the client JS hydrated. On a
+// slow first paint that read as "navbar loading 40s late".
 //
 // Now the fallback renders the navbar *shell* (no active link
-// highlights) so the bar is present in the static HTML and visible
-// instantly. After hydration the searchParams resolve and NavInner
-// re-renders with active state.
+// highlights) so the bar is present in the prerendered HTML and
+// visible instantly. After hydration the searchParams resolve and
+// NavInner re-renders with active state.
 export default function Nav() {
   return (
     <Suspense fallback={<NavInner searchParams={null} />}>
