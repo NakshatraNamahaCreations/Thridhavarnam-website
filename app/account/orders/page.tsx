@@ -11,7 +11,6 @@ const PAY_LABEL: Record<PayMethod, string> = {
   upi: 'UPI',
   card: 'Card',
   netbanking: 'Net banking',
-  cod: 'Cash on delivery',
 };
 
 const SHIP_LABEL: Record<ShipMethod, string> = {

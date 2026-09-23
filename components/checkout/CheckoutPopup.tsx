@@ -24,11 +24,10 @@ import {
 import { openRazorpayCheckout } from '@/lib/razorpay';
 
 type ShipMethod = 'standard' | 'express';
-type PayMethod = 'upi' | 'card' | 'netbanking' | 'cod';
+type PayMethod = 'upi' | 'card' | 'netbanking';
 type OrderItem = { saree: (typeof SAREES)[number]; qty: number };
 
 const EXPRESS_FEE = 500;
-const COD_FEE = 100;
 const GST_RATE = 0.05;
 
 export default function CheckoutPopup() {
@@ -113,10 +112,9 @@ export default function CheckoutPopup() {
 
   // ── Totals ────────────────────────────────────────────────────────────
   const shippingFee = shipMethod === 'express' ? EXPRESS_FEE : 0;
-  const codFee = payMethod === 'cod' ? COD_FEE : 0;
   const appliedCoupon = promoCode ? coupons.find((c) => c.code === promoCode) : undefined;
   const discount = appliedCoupon ? calcCouponDiscount(appliedCoupon, cartSubtotal) : 0;
-  const taxable = Math.max(cartSubtotal - discount, 0) + shippingFee + codFee;
+  const taxable = Math.max(cartSubtotal - discount, 0) + shippingFee;
   const tax = Math.round(taxable * GST_RATE);
   const total = taxable + tax;
   const mrpTotal = cartSubtotal;
@@ -159,9 +157,7 @@ export default function CheckoutPopup() {
   };
 
   // Commit the local order record + push to backend (which auto-feeds
-  // Shiprocket) + clear cart + navigate to the right post-payment page.
-  // Shared by the COD and Razorpay flows so history + backend records
-  // stay consistent.
+  // Shiprocket) + clear cart + navigate to the payment-success page.
   const finalizeAndRoute = async (opts: {
     paid: boolean;
     ref?: string;
@@ -196,7 +192,6 @@ export default function CheckoutPopup() {
       subtotal: cartSubtotal,
       discount,
       shippingFee,
-      codFee,
       tax,
       total,
     });
@@ -235,7 +230,6 @@ export default function CheckoutPopup() {
         subtotal: order.subtotal,
         discount: order.discount,
         shippingFee: order.shippingFee,
-        codFee: order.codFee,
         tax: order.tax,
         total: order.total,
         razorpay: opts.razorpay,
@@ -245,25 +239,13 @@ export default function CheckoutPopup() {
       });
 
     clearCart();
-    // COD skips the payment-success interstitial — there's no payment
-    // to confirm — and goes straight to the order Thank-You page.
-    if (payMethod === 'cod') {
-      const qs = new URLSearchParams({
-        id: order.id,
-        email: order.address.email,
-        phone: order.address.phone,
-        ship: order.shipMethod,
-      });
-      closeAllAndGo(`/order/thank-you?${qs.toString()}`);
-    } else {
-      const qs = new URLSearchParams({
-        order: order.id,
-        method: order.payMethod,
-        amount: String(order.total),
-        ref: opts.ref || `TXN${Date.now().toString().slice(-8)}`,
-      });
-      closeAllAndGo(`/payment/success?${qs.toString()}`);
-    }
+    const qs = new URLSearchParams({
+      order: order.id,
+      method: order.payMethod,
+      amount: String(order.total),
+      ref: opts.ref || `TXN${Date.now().toString().slice(-8)}`,
+    });
+    closeAllAndGo(`/payment/success?${qs.toString()}`);
   };
 
   const onPlaceOrder = async (e: FormEvent) => {
@@ -283,12 +265,6 @@ export default function CheckoutPopup() {
       return;
     }
     setPlacing(true);
-
-    if (payMethod === 'cod') {
-      await finalizeAndRoute({ paid: false });
-      setPlacing(false);
-      return;
-    }
 
     // ── Razorpay flow ──────────────────────────────────────────────────
     // 1. Ask the backend to create a Razorpay order (server-side, uses
@@ -447,7 +423,6 @@ export default function CheckoutPopup() {
                   label="Shipping"
                   value={shippingFee === 0 ? 'Free' : formatINR(shippingFee)}
                 />
-                {codFee > 0 && <SummaryRow label="COD handling" value={formatINR(codFee)} />}
                 <SummaryRow label="GST (5%)" value={formatINR(tax)} muted />
                 <div className="h-px bg-ink/10 my-2" />
                 <SummaryRow label="To pay" value={formatINR(total)} strong />
@@ -639,14 +614,6 @@ export default function CheckoutPopup() {
                 sub="All major Indian banks"
                 amount={formatINR(total)}
               />
-              <PaymentRow
-                checked={payMethod === 'cod'}
-                onClick={() => setPayMethod('cod')}
-                icon="cod"
-                title="Cash on delivery"
-                sub={`+ ${formatINR(COD_FEE)} handling fee`}
-                amount={formatINR(total)}
-              />
             </div>
           </div>
 
@@ -675,22 +642,18 @@ export default function CheckoutPopup() {
                 ? 'Placing order…'
                 : !selectedAddress
                 ? 'Select address to continue'
-                : payMethod === 'cod'
-                ? 'Place order'
                 : 'Pay & place order'}
             </button>
             {/* Mimics the gateway 'cancel payment' return URL — useful for
                 testing the /payment/cancelled page without a real gateway. */}
-            {payMethod !== 'cod' && (
-              <button
-                type="button"
-                onClick={onCancelPayment}
-                disabled={placing}
-                className="mt-2 w-full text-center text-[11px] text-ink/55 hover:text-maroon underline underline-offset-2 disabled:opacity-50"
-              >
-                Cancel payment
-              </button>
-            )}
+            <button
+              type="button"
+              onClick={onCancelPayment}
+              disabled={placing}
+              className="mt-2 w-full text-center text-[11px] text-ink/55 hover:text-maroon underline underline-offset-2 disabled:opacity-50"
+            >
+              Cancel payment
+            </button>
           </div>
         </form>
       </Shell>
@@ -886,7 +849,7 @@ function PaymentRow({
 }: {
   checked: boolean;
   onClick: () => void;
-  icon: 'upi' | 'card' | 'bank' | 'cod';
+  icon: 'upi' | 'card' | 'bank';
   title: string;
   sub: string;
   amount: string;
@@ -922,7 +885,7 @@ function PaymentRow({
   );
 }
 
-function PayIcon({ name }: { name: 'upi' | 'card' | 'bank' | 'cod' }) {
+function PayIcon({ name }: { name: 'upi' | 'card' | 'bank' }) {
   switch (name) {
     case 'upi':
       return (
@@ -940,12 +903,6 @@ function PayIcon({ name }: { name: 'upi' | 'card' | 'bank' | 'cod' }) {
       return (
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
           <path d="m3 10 9-6 9 6M5 10v8M19 10v8M9 10v8M15 10v8M3 20h18" />
-        </svg>
-      );
-    case 'cod':
-      return (
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
-          <circle cx="12" cy="12" r="8" /><path d="M9 10h6M9 14h6" strokeLinecap="round" />
         </svg>
       );
   }

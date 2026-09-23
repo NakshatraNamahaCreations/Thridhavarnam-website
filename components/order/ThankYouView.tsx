@@ -10,7 +10,6 @@ const PAY_LABEL: Record<PayMethod, string> = {
   upi: 'UPI',
   card: 'Card',
   netbanking: 'Net banking',
-  cod: 'Cash on delivery',
 };
 
 const SHIP_LABEL: Record<ShipMethod, string> = {
@@ -204,9 +203,6 @@ export default function ThankYouView() {
                     label="Shipping"
                     value={order.shippingFee === 0 ? 'Free' : formatINR(order.shippingFee)}
                   />
-                  {order.codFee > 0 && (
-                    <SummaryRow label="COD handling" value={formatINR(order.codFee)} />
-                  )}
                   <SummaryRow label="GST (5%)" value={formatINR(order.tax)} muted />
                   <div className="h-px bg-ink/10 my-2" />
                   <SummaryRow label="Total paid" value={formatINR(order.total)} strong />

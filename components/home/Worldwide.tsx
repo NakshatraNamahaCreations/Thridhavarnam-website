@@ -31,7 +31,7 @@ const promises = [
       </svg>
     ),
     title: 'Secure Checkout',
-    body: 'All major cards · UPI · COD',
+    body: 'All major cards · UPI · Net banking',
   },
 ];
 

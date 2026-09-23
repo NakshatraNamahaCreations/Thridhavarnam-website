@@ -13,7 +13,7 @@ import { SAREES, type Saree } from './sarees';
 import { productsApi, backendToSaree } from './api';
 
 export type CartItem = { productId: string; quantity: number };
-type ToastKind = 'cart-add' | 'cart-remove' | 'wishlist-add' | 'wishlist-remove';
+type ToastKind = 'cart-add' | 'cart-remove' | 'wishlist-add' | 'wishlist-remove' | 'wishlist-blocked';
 
 export type Toast = {
   id: number;
@@ -207,6 +207,22 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     (productId: string) => {
       setState((s) => {
         const has = s.wishlist.includes(productId);
+        // Block adding when the product is out of stock. Stock is treated
+        // as unknown → in-stock (matches lib/sarees.ts), only stock <= 0
+        // is a real OOS. Removal is always allowed so items that went OOS
+        // after being saved can still be cleared.
+        if (!has) {
+          const product = getProduct(productId);
+          const stock = product?.stock;
+          if (typeof stock === 'number' && stock <= 0) {
+            pushToast({
+              kind: 'wishlist-blocked',
+              productId,
+              message: `${productName(productId)} is out of stock`,
+            });
+            return s;
+          }
+        }
         const wishlist = has
           ? s.wishlist.filter((id) => id !== productId)
           : [...s.wishlist, productId];
@@ -220,7 +236,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
         return { ...s, wishlist };
       });
     },
-    [pushToast],
+    [pushToast, getProduct],
   );
 
   const inWishlist = useCallback(

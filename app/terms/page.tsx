@@ -93,7 +93,7 @@ const sections: LegalSection[] = [
         </p>
         <p>
           Orders will be processed only after successful payment
-          confirmation, except where Cash on Delivery (COD) is available.
+          confirmation.
         </p>
       </>
     ),

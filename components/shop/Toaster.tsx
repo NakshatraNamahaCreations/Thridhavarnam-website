@@ -13,7 +13,10 @@ export default function Toaster() {
         const product = getProduct(t.productId);
         const isAdd = t.kind === 'cart-add' || t.kind === 'wishlist-add';
         const isCart = t.kind === 'cart-add' || t.kind === 'cart-remove';
-        const accent = isAdd
+        const isBlocked = t.kind === 'wishlist-blocked';
+        const accent = isBlocked
+          ? 'border-l-amber-600'
+          : isAdd
           ? isCart
             ? 'border-l-emerald-600'
             : 'border-l-maroon'
@@ -38,7 +41,9 @@ export default function Toaster() {
             )}
             <div className="flex-1 min-w-0">
               <div className="text-[0.7rem] text-ink/55 uppercase tracking-wide font-semibold mb-0.5">
-                {isCart
+                {isBlocked
+                  ? 'Out of Stock'
+                  : isCart
                   ? isAdd
                     ? 'Added to Bag'
                     : 'Removed from Bag'

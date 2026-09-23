@@ -252,14 +252,13 @@ export type StorefrontOrderPayload = {
     unitPrice: number;
   }[];
   itemCount: number;
-  payMethod: 'upi' | 'card' | 'netbanking' | 'cod';
+  payMethod: 'upi' | 'card' | 'netbanking';
   shipMethod: 'standard' | 'express';
   paid: boolean;
   promoCode: string | null;
   subtotal: number;
   discount: number;
   shippingFee: number;
-  codFee: number;
   tax: number;
   total: number;
   razorpay?: {

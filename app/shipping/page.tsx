@@ -252,15 +252,7 @@ export default function ShippingPage() {
           </p>
         </PolicyBlock>
 
-        <PolicyBlock title="13. Cash on Delivery (COD)">
-          <p className="text-sm text-gray-700 leading-relaxed">
-            Cash on Delivery may be available only in selected serviceable
-            locations within India. Availability depends on the courier
-            partner.
-          </p>
-        </PolicyBlock>
-
-        <PolicyBlock title="14. Shipping Restrictions">
+        <PolicyBlock title="13. Shipping Restrictions">
           <p className="text-sm text-gray-700 leading-relaxed mb-3">
             We do not ship to:
           </p>

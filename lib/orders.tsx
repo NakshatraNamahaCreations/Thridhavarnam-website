@@ -11,7 +11,7 @@ import {
 } from 'react';
 
 export type OrderStatus = 'placed' | 'cancelled';
-export type PayMethod = 'upi' | 'card' | 'netbanking' | 'cod';
+export type PayMethod = 'upi' | 'card' | 'netbanking';
 export type ShipMethod = 'standard' | 'express';
 
 export type OrderItem = {
@@ -51,7 +51,6 @@ export type Order = {
   subtotal: number;
   discount: number;
   shippingFee: number;
-  codFee: number;
   tax: number;
   total: number;
 };

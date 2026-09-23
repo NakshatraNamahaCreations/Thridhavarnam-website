@@ -21,8 +21,18 @@ export default function PressStrip() {
       .list()
       .then((rows) => {
         if (cancelled) return;
+        // Include products either explicitly flagged as `fast` (admin
+        // merchandising) OR running low on stock (< 10 units). Low-stock
+        // signals urgency and belongs in the same rail — no separate
+        // section. stock === undefined is treated as unknown → in-stock
+        // (matches lib/sarees.ts), so it does NOT count as low-stock.
         const fast = rows
-          .filter((p) => Array.isArray(p.badges) && p.badges.includes('fast'))
+          .filter((p) => {
+            const flagged = Array.isArray(p.badges) && p.badges.includes('fast');
+            const lowStock =
+              typeof p.stock === 'number' && p.stock > 0 && p.stock < 10;
+            return flagged || lowStock;
+          })
           .map<FastItem>((p) => ({
             saree: backendToSaree(p),
             stock: typeof p.stock === 'number' ? p.stock : 5,
@@ -134,7 +144,7 @@ export default function PressStrip() {
                         Out of Stock
                       </span>
                     </div>
-                  ) : stock <= 3 ? (
+                  ) : stock < 10 ? (
                     <div className="absolute top-2.5 left-2.5 bg-maroon text-ivory px-2 py-1 text-[0.65rem] font-bold uppercase tracking-wider rounded-sm">
                       Only {stock} Left
                     </div>

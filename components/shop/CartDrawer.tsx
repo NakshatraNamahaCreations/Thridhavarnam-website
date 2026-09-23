@@ -318,7 +318,6 @@ function PaymentLogos() {
       <Tag label="VISA" />
       <Tag label="Mastercard" />
       <Tag label="Amex" />
-      <Tag label="COD" />
       <Tag label="UPI" />
       <Tag label="RuPay" />
     </div>
