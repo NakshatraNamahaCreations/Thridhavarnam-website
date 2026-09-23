@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import AnimatedSearchBar from '@/components/AnimatedSearchBar';
 import PromoStrip from '@/components/PromoStrip';
@@ -10,29 +10,36 @@ import { useShop } from '@/lib/shop-store';
 import { useCartDrawer } from '@/lib/cart-drawer';
 import { useScrollLock } from '@/lib/scroll-lock';
 import AccountMenu from '@/components/auth/AccountMenu';
+import { categoriesApi, occasionsApi } from '@/lib/api';
 
-// Left section nav — tier categories. Plain English labels only.
-const sectionLinks = [
+type SectionLink = { href: string; label: string };
+
+// Static fallback rendered while the occasionsApi call is in-flight, or
+// if it fails. Once the backend responds, the top-row switches to the
+// admin-managed Occasions taxonomy — adding "Party" or "Wedding" in the
+// admin panel is reflected here without a code change.
+const FALLBACK_SECTION_LINKS: SectionLink[] = [
   { href: '/shop?tier=bridal', label: 'Bridal' },
   { href: '/shop?tier=festive', label: 'Festive' },
   { href: '/shop?tier=everyday', label: 'Everyday' },
 ];
 
-// Sub-row — the weaves
-const weaveLinks = [
+type WeaveLink = { href: string; label: string; accent?: 'maroon' | 'box' };
+
+// Fixed nav items that lead the weave row. Everything after these is
+// pulled from the backend Categories taxonomy at runtime (see the
+// useEffect in NavInner) so adding / renaming a category in the admin
+// panel is reflected in the storefront navbar without a code change.
+const staticWeaveLinks: WeaveLink[] = [
   { href: '/home', label: 'Home' },
   { href: '/shop', label: 'New In', accent: 'maroon' },
-  { href: '/shop?weave=Kanjivaram', label: 'Kanjeevaram' },
-  { href: '/shop?weave=Banarasi', label: 'Banarasi' },
-  { href: '/shop?weave=Mysore+Silk', label: 'Mysore Silk' },
-  { href: '/shop?weave=Mangalagiri', label: 'Mangalagiri' },
-  { href: '/shop?weave=Pochampally', label: 'Pochampally' },
-  { href: '/shop?weave=Gadwal', label: 'Gadwal' },
-  { href: '/shop?weave=Patola', label: 'Patola' },
-  { href: '/shop?weave=Fancy+Sarees', label: 'Fancy Sarees' },
-  { href: '/shop?weave=Mixed+Pattu+Sarees', label: 'Mixed Pattu Sarees' },
-  { href: '/shop?sale=1', label: 'Sale', accent: 'box' },
 ];
+
+// Cap on how many backend categories render inline in the desktop
+// sub-row. Anything past this is collapsed under a `More ▾` dropdown.
+// The mobile drawer is a vertical scroll list, so the cap doesn't
+// apply there — every category shows inline.
+const MAX_INLINE_CATEGORIES = 10;
 
 // Active-link detection. A link is active when the current path matches
 // its base path AND every query param the link declares is present (with
@@ -58,7 +65,12 @@ function isLinkActive(
     if (params.get(k) !== v) return false;
   }
   if (linkParams.toString() === '' && path === '/shop') {
-    if (params.get('weave') || params.get('sale') || params.get('tier')) {
+    if (
+      params.get('weave') ||
+      params.get('sale') ||
+      params.get('tier') ||
+      params.get('occasion')
+    ) {
       return false;
     }
   }
@@ -99,6 +111,62 @@ function NavInner({ searchParams }: { searchParams: URLSearchParams | null }) {
 
   const [scrolled, setScrolled] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [dynamicWeaves, setDynamicWeaves] = useState<WeaveLink[]>([]);
+  const [dynamicSections, setDynamicSections] = useState<SectionLink[]>([]);
+
+  // Fetch categories on mount. Failures are swallowed silently — the nav
+  // still renders the fixed Home / New In entries so users can navigate.
+  // Runs once per mount; Nav lives in the layout, so client-side route
+  // changes reuse the fetched list without re-fetching.
+  useEffect(() => {
+    let cancelled = false;
+    categoriesApi
+      .list()
+      .then((rows) => {
+        if (cancelled) return;
+        const links: WeaveLink[] = rows
+          .filter((c) => c.name)
+          .map((c) => ({
+            href: `/shop?${new URLSearchParams({ weave: c.name }).toString()}`,
+            label: c.name,
+          }));
+        setDynamicWeaves(links);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Same treatment for the top-row occasion tabs. Falls back to the
+  // static Bridal / Festive / Everyday tier links if the API is down.
+  useEffect(() => {
+    let cancelled = false;
+    occasionsApi
+      .list()
+      .then((rows) => {
+        if (cancelled) return;
+        const links: SectionLink[] = rows
+          .filter((o) => o.name)
+          .map((o) => ({
+            href: `/shop?${new URLSearchParams({ occasion: o.name }).toString()}`,
+            label: o.name,
+          }));
+        setDynamicSections(links);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const sectionLinks: SectionLink[] =
+    dynamicSections.length > 0 ? dynamicSections : FALLBACK_SECTION_LINKS;
+
+  const weaveLinks: WeaveLink[] = [...staticWeaveLinks, ...dynamicWeaves];
+  const inlineCategories = dynamicWeaves.slice(0, MAX_INLINE_CATEGORIES);
+  const overflowCategories = dynamicWeaves.slice(MAX_INLINE_CATEGORIES);
+  const inlineDesktopLinks: WeaveLink[] = [...staticWeaveLinks, ...inlineCategories];
 
   // Close menu on route change so a tap-through link doesn't leave it open.
   useEffect(() => {
@@ -419,7 +487,7 @@ function NavInner({ searchParams }: { searchParams: URLSearchParams | null }) {
       <div className="hidden md:block border-b border-ink/10">
         <div className="max-w-[1720px] mx-auto px-6 lg:px-10">
           <div className="flex items-center [justify-content:safe_center] gap-3 lg:gap-5 py-2 overflow-x-auto no-scrollbar">
-            {weaveLinks.map((w) => {
+            {inlineDesktopLinks.map((w) => {
               const active = isLinkActive(w.href, pathname, searchParams);
               const cls =
                 w.accent === 'box'
@@ -446,10 +514,139 @@ function NavInner({ searchParams }: { searchParams: URLSearchParams | null }) {
                 </Link>
               );
             })}
+            {overflowCategories.length > 0 && (
+              <MoreDropdown
+                items={overflowCategories}
+                pathname={pathname}
+                searchParams={searchParams}
+              />
+            )}
           </div>
         </div>
       </div>
     </header>
+  );
+}
+
+// Overflow dropdown for backend categories past MAX_INLINE_CATEGORIES.
+// Rendered inline in the sub-row as a `More ▾` trigger, but the panel
+// itself uses `position: fixed` (coords read off the trigger's rect)
+// so it escapes the parent's `overflow-x-auto` clip.
+function MoreDropdown({
+  items,
+  pathname,
+  searchParams,
+}: {
+  items: WeaveLink[];
+  pathname: string;
+  searchParams: URLSearchParams | null;
+}) {
+  const [open, setOpen] = useState(false);
+  const [coords, setCoords] = useState<{ top: number; left: number } | null>(null);
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const panelRef = useRef<HTMLDivElement | null>(null);
+
+  const updateCoords = useCallback(() => {
+    const t = triggerRef.current;
+    if (!t) return;
+    const rect = t.getBoundingClientRect();
+    setCoords({ top: rect.bottom + 4, left: rect.left });
+  }, []);
+
+  useEffect(() => {
+    if (!open) return;
+    updateCoords();
+    const onScroll = () => updateCoords();
+    const onResize = () => updateCoords();
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    const onOutside = (e: MouseEvent) => {
+      const target = e.target as Node;
+      if (
+        panelRef.current?.contains(target) ||
+        triggerRef.current?.contains(target)
+      ) {
+        return;
+      }
+      setOpen(false);
+    };
+    window.addEventListener('scroll', onScroll, { passive: true });
+    window.addEventListener('resize', onResize);
+    window.addEventListener('keydown', onKey);
+    window.addEventListener('mousedown', onOutside);
+    return () => {
+      window.removeEventListener('scroll', onScroll);
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('mousedown', onOutside);
+    };
+  }, [open, updateCoords]);
+
+  // Close on route change so a picked item doesn't leave the panel open.
+  useEffect(() => {
+    setOpen(false);
+  }, [pathname, searchParams]);
+
+  const anyActive = items.some((l) =>
+    isLinkActive(l.href, pathname, searchParams),
+  );
+
+  return (
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        onClick={() => setOpen((v) => !v)}
+        className={clsx(
+          'relative text-[0.72rem] tracking-[0.12em] uppercase transition-colors whitespace-nowrap inline-flex items-center gap-1',
+          open || anyActive
+            ? 'text-maroon font-semibold'
+            : 'text-ink/90 hover:text-maroon font-medium',
+        )}
+      >
+        More
+        <span
+          className={clsx(
+            'text-[0.6rem] leading-none transition-transform duration-200',
+            open && 'rotate-180',
+          )}
+        >
+          ▾
+        </span>
+      </button>
+      {open && coords && (
+        <div
+          ref={panelRef}
+          role="menu"
+          style={{ position: 'fixed', top: coords.top, left: coords.left }}
+          className="z-50 min-w-[180px] bg-ivory no-pattern border border-ink/15 shadow-[0_10px_30px_-6px_rgba(77,0,21,0.18)] py-1.5"
+        >
+          {items.map((item) => {
+            const active = isLinkActive(item.href, pathname, searchParams);
+            return (
+              <Link
+                key={item.href + item.label}
+                href={item.href}
+                role="menuitem"
+                onClick={() => setOpen(false)}
+                aria-current={active ? 'page' : undefined}
+                className={clsx(
+                  'block px-4 py-2 text-[0.72rem] tracking-[0.12em] uppercase transition-colors whitespace-nowrap',
+                  active
+                    ? 'text-maroon font-semibold bg-ink/5'
+                    : 'text-ink/90 hover:text-maroon hover:bg-ink/5 font-medium',
+                )}
+              >
+                {item.label}
+              </Link>
+            );
+          })}
+        </div>
+      )}
+    </>
   );
 }
 

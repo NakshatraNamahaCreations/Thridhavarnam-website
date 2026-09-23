@@ -228,13 +228,15 @@ export default function EnterAtelier() {
               <a
                 href="/home"
                 onClick={leaveStory('/home')}
-                className="group relative flex sm:inline-flex w-full sm:w-auto items-center justify-between gap-4 sm:gap-8 bg-[#E0AE6D] text-[#3F3F3F] pl-5 pr-4 sm:pl-6 sm:pr-5 py-[0.9rem] hover:bg-[#F2C99E] transition-colors duration-500 shadow-[0_10px_40px_-12px_rgba(201,169,97,0.55)] whitespace-nowrap"
+                className="group relative flex sm:inline-flex w-full sm:w-auto items-center justify-center gap-3 sm:gap-4 rounded-full bg-gradient-to-b from-[#F5D89C] via-[#DDB067] to-[#B78846] text-white px-8 sm:px-10 py-4 sm:py-[1.05rem] hover:from-[#FCE3AF] hover:via-[#E9BE7B] hover:to-[#C69553] transition-all duration-500 shadow-[0_14px_48px_-8px_rgba(184,134,63,0.75),0_3px_10px_-2px_rgba(76,42,14,0.45),inset_0_1px_0_rgba(255,240,210,0.6),inset_0_-1px_0_rgba(76,42,14,0.28)] hover:shadow-[0_22px_60px_-8px_rgba(224,174,109,0.95),0_4px_14px_-2px_rgba(76,42,14,0.5),inset_0_1px_0_rgba(255,240,210,0.72),inset_0_-1px_0_rgba(76,42,14,0.32)] whitespace-nowrap overflow-hidden"
               >
-                <span className="eyebrow text-[0.55rem] sm:text-[0.6rem] tracking-[0.32em] sm:tracking-[0.35em]">
+                <span className="absolute inset-0 rounded-full bg-[radial-gradient(ellipse_at_top,rgba(255,240,210,0.4),transparent_60%)] pointer-events-none" />
+                <span className="absolute -inset-y-1 -left-full w-1/3 rotate-12 bg-gradient-to-r from-transparent via-white/45 to-transparent blur-sm transition-all duration-700 group-hover:left-full pointer-events-none" />
+                <span className="relative eyebrow text-[0.62rem] sm:text-[0.72rem] tracking-[0.35em] sm:tracking-[0.38em] font-bold text-white drop-shadow-[0_1px_2px_rgba(76,42,14,0.5)]">
                   Step inside
                 </span>
-                <span className="text-base leading-none translate-y-[-1px]">→</span>
-                <span className="absolute inset-0 border border-[#F2C99E]/40 pointer-events-none" />
+                <span className="relative text-base leading-none translate-y-[-1px] text-white font-bold drop-shadow-[0_1px_2px_rgba(76,42,14,0.5)] transition-transform duration-300 group-hover:translate-x-1">→</span>
+                <span className="absolute inset-0 rounded-full border border-[#7A4A1E]/30 pointer-events-none" />
               </a>
               <a
                 href="/shop"

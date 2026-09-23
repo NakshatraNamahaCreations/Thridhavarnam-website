@@ -8,7 +8,7 @@ import {
 export const metadata: Metadata = {
   title: 'Return, Replacement & Refund Policy · Thridha Varnam',
   description:
-    'Thridha Varnam return, replacement and refund policy — eligibility, 48-hour window, mandatory unboxing video, refund timelines and contact information.',
+    'Thridha Varnam return, replacement and refund policy — eligibility, 24-hour window, mandatory unboxing video, refund timelines and contact information.',
 };
 
 export default function ReturnsPage() {
@@ -45,9 +45,9 @@ export default function ReturnsPage() {
           <ul className="text-sm text-gray-700 space-y-2 list-disc pl-5">
             <li>
               Return requests must be raised within{' '}
-              <strong>48 hours of delivery</strong>.
+              <strong>24 hours of delivery</strong>.
             </li>
-            <li>Requests made after 48 hours may not be accepted.</li>
+            <li>Requests made after 24 hours may not be accepted.</li>
           </ul>
         </PolicyBlock>
 
@@ -81,7 +81,7 @@ export default function ReturnsPage() {
 
         <PolicyBlock title="4. How to Submit a Return Request">
           <p className="text-sm text-gray-700 leading-relaxed mb-3">
-            Within 48 hours of delivery, send the following:
+            Within 24 hours of delivery, send the following:
           </p>
           <ul className="text-sm text-gray-700 space-y-1.5 list-disc pl-5 mb-4">
             <li>Order Number</li>

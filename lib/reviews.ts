@@ -1,9 +1,10 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { reviewsApi, type BackendReview } from './api';
 
 export type Review = {
-  id: number;
+  id: string;
   productId: string;
   name: string;
   rating: number; // 1..5
@@ -11,65 +12,56 @@ export type Review = {
   createdAt: number;
 };
 
-const STORAGE_KEY = 'tridhavarnam-reviews-v1';
-
-function readAll(): Review[] {
-  if (typeof window === 'undefined') return [];
-  try {
-    const raw = window.localStorage.getItem(STORAGE_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Review[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function writeAll(reviews: Review[]) {
-  if (typeof window === 'undefined') return;
-  try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(reviews));
-  } catch {
-    /* quota / disabled */
-  }
+function backendToReview(r: BackendReview): Review {
+  const ts = Date.parse(r.createdAt);
+  return {
+    id: r.id,
+    productId: r.productId,
+    name: r.name,
+    rating: r.rating,
+    comment: r.comment ?? '',
+    createdAt: Number.isFinite(ts) ? ts : Date.now(),
+  };
 }
 
 /**
- * useReviews — hydration-safe hook returning the reviews for a product, an
- * `add` function, and an aggregate (count + average). Reviews persist in
- * localStorage so they survive reloads; cross-tab edits are mirrored via the
- * native `storage` event.
+ * useReviews — hydration-safe hook returning the reviews for a product,
+ * an `add` function that persists to the backend, and an aggregate
+ * (count + average). Reviews are fetched on mount and after each add.
  */
 export function useReviews(productId: string) {
   const [reviews, setReviews] = useState<Review[]>([]);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
-    setReviews(readAll().filter((r) => r.productId === productId));
-    setHydrated(true);
-  }, [productId]);
-
-  useEffect(() => {
-    const onStorage = (e: StorageEvent) => {
-      if (e.key !== STORAGE_KEY) return;
-      setReviews(readAll().filter((r) => r.productId === productId));
+    let cancelled = false;
+    setHydrated(false);
+    reviewsApi
+      .list(productId)
+      .then((rows) => {
+        if (cancelled) return;
+        setReviews(rows.map(backendToReview));
+        setHydrated(true);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setReviews([]);
+        setHydrated(true);
+      });
+    return () => {
+      cancelled = true;
     };
-    window.addEventListener('storage', onStorage);
-    return () => window.removeEventListener('storage', onStorage);
   }, [productId]);
 
   const add = useCallback(
-    (review: Omit<Review, 'id' | 'productId' | 'createdAt'>) => {
-      const all = readAll();
-      const next: Review = {
-        ...review,
-        id: Date.now() + Math.floor(Math.random() * 1000),
+    async (review: Omit<Review, 'id' | 'productId' | 'createdAt'>) => {
+      const created = await reviewsApi.create({
         productId,
-        createdAt: Date.now(),
-      };
-      const updated = [next, ...all];
-      writeAll(updated);
-      setReviews(updated.filter((r) => r.productId === productId));
+        name: review.name,
+        rating: review.rating,
+        comment: review.comment,
+      });
+      setReviews((prev) => [backendToReview(created), ...prev]);
     },
     [productId],
   );

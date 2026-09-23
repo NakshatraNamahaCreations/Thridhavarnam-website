@@ -1,9 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import { STANDARD_COLORWAYS } from '@/lib/sarees';
 import type { Tier, Weave } from '@/lib/sarees';
+import { categoriesApi } from '@/lib/api';
 
-const WEAVES: Weave[] = [
+// Static fallback used only if the categoriesApi call fails or returns
+// nothing. Kept small so the rail isn't empty on the first render.
+const FALLBACK_WEAVES: Weave[] = [
   'Kanjivaram', 'Banarasi', 'Mysore Silk', 'Mangalagiri',
   'Pochampally', 'Gadwal', 'Patola', 'Fancy Sarees', 'Mixed Pattu Sarees',
 ];
@@ -110,6 +114,27 @@ export default function FilterRail({
     (filters.bracket ? 1 : 0) + (filters.sale ? 1 : 0) +
     filters.colors.length + filters.occasions.length + filters.flags.length;
 
+  // Weave options come from the backend Categories taxonomy so adding /
+  // renaming a category in the admin panel is reflected here without a
+  // code change. Fetch fires once on mount. Until it resolves (or if it
+  // fails) we fall back to the static list so the section is never empty.
+  const [fetchedWeaves, setFetchedWeaves] = useState<Weave[]>([]);
+  useEffect(() => {
+    let cancelled = false;
+    categoriesApi
+      .list()
+      .then((rows) => {
+        if (cancelled) return;
+        setFetchedWeaves(rows.filter((c) => c.name).map((c) => c.name));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const weaveOptions =
+    fetchedWeaves.length > 0 ? fetchedWeaves : FALLBACK_WEAVES;
+
   const toggleWeave = (w: Weave) => onChange({
     ...filters,
     weaves: filters.weaves.includes(w) ? filters.weaves.filter((x) => x !== w) : [...filters.weaves, w],
@@ -164,7 +189,7 @@ export default function FilterRail({
       </Section>
 
       <Section title="Weave">
-        {WEAVES.map((w) => (
+        {weaveOptions.map((w) => (
           <Check
             key={w}
             label={w}

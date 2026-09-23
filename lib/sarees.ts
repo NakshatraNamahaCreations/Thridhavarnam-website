@@ -1,15 +1,10 @@
 export type Tier = 'bridal' | 'festive' | 'everyday';
 
-export type Weave =
-  | 'Banarasi'
-  | 'Kanjivaram'
-  | 'Mysore Silk'
-  | 'Mangalagiri'
-  | 'Pochampally'
-  | 'Gadwal'
-  | 'Patola'
-  | 'Fancy Sarees'
-  | 'Mixed Pattu Sarees';
+// Weave names are admin-controlled — the storefront pulls them from the
+// backend Categories collection at runtime (see FilterRail / Nav). Keeping
+// this as `string` means adding a new category in the admin panel doesn't
+// require a matching type-union edit here.
+export type Weave = string;
 
 // Stock / availability ribbons rendered on the product card and the
 // product detail page. Kept here so the catalog data, ProductCard,

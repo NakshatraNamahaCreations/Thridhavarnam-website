@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
 import { PolicyHeader } from '@/components/policy/PolicyChrome';
+import { enquiriesApi } from '@/lib/api';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_RE = /^[6-9]\d{9}$/;
@@ -34,6 +35,7 @@ export default function ContactView() {
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const [submitting, setSubmitting] = useState(false);
   const [submittedRef, setSubmittedRef] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const markTouched = (field: string) =>
     setTouched((t) => (t[field] ? t : { ...t, [field]: true }));
@@ -58,7 +60,7 @@ export default function ContactView() {
     [firstNameValid, lastNameValid, emailValid, mobileValid, messageValid],
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formValid) {
       setTouched({
@@ -71,11 +73,31 @@ export default function ContactView() {
       return;
     }
     setSubmitting(true);
-    setTimeout(() => {
-      const ref = `MSG-${Date.now().toString(36).slice(-5).toUpperCase()}-${Math.random().toString(36).slice(2, 5).toUpperCase()}`;
-      setSubmittedRef(ref);
+    setSubmitError(null);
+    try {
+      // The Enquiry schema has fixed weave/occasion/budget/timeline slots
+      // for the bespoke flow — a contact form doesn't fill those, so they
+      // go through as empty. Subject label is prepended to notes so the
+      // admin panel still sees which category the message came in under.
+      const subjectLabel = SUBJECTS.find((s) => s.id === subject)?.label ?? subject;
+      const created = await enquiriesApi.create({
+        name: `${firstName.trim()} ${lastName.trim()}`.trim(),
+        email: email.trim(),
+        phone: `+91${mobile.trim()}`,
+        weave: '',
+        occasion: '',
+        budget: '',
+        timeline: '',
+        notes: `Subject: ${subjectLabel}\n\n${message.trim()}`,
+      });
+      setSubmittedRef(created.ref);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : 'Could not send message — please try again.',
+      );
+    } finally {
       setSubmitting(false);
-    }, 700);
+    }
   };
 
   const resetForm = () => {
@@ -87,6 +109,7 @@ export default function ContactView() {
     setMessage('');
     setTouched({});
     setSubmittedRef(null);
+    setSubmitError(null);
   };
 
   return (
@@ -222,6 +245,15 @@ export default function ContactView() {
                     />
                     <InlineError msg={messageError} />
                   </div>
+
+                  {submitError && (
+                    <div
+                      className="border border-[#75001F] bg-[#75001F]/5 px-4 py-3 text-sm text-[#75001F]"
+                      role="alert"
+                    >
+                      {submitError}
+                    </div>
+                  )}
 
                   <button
                     type="submit"

@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { gsap } from 'gsap';
 import { useAudio } from '@/components/AudioProvider';
 import { useScrollLock } from '@/lib/scroll-lock';
+import { storiesApi, type BackendStory } from '@/lib/api';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
@@ -21,12 +22,8 @@ function leaveStory(href: string) {
   };
 }
 
-// A curated selection of heirloom weaves shown in the story section.
-// Thridha Varnam carries more than this — these are the chapters the
-// house opens with. Local to this component; the /journey deep-archive
-// still reads from REGIONS in lib/sarees.ts. Some imagery is placeholder
-// until the photographs for Pochampally, Gadwal and Mangalagiri arrive —
-// see the `image` field's trailing comments.
+// Shape used by the tile / detail rendering. Records are fetched from
+// the backend Stories collection (admin-managed via the admin panel).
 type Category = {
   id: string;
   name: string;
@@ -42,118 +39,52 @@ type Category = {
   pull_quote: string;
 };
 
-const CATEGORIES: Category[] = [
-  {
-    id: 'kanjeevaram',
-    name: 'Kanjeevaram',
-    region: 'Kanchipuram',
-    state: 'Tamil Nadu',
-    era: 'since the Chola dynasty · 9th century',
-    image: '/story/kanjeevaram.webp',
-    palette: ['#0E4D5C', '#C9A961', '#6B0E1F'],
-    intro:
-      'Three sarees, fused at the petni, lived as one — the temple-edged drape of the south.',
-    origins:
-      'In the 9th century, the Devangas and Saligars were drawn from Andhra to Kanchipuram under the Chola dynasty. They settled around the temples, and the temple grammar entered the weave — the gopuram in the pallu border, the rudraksha as a recurring motif.',
-    technique:
-      'Body, border, and pallu are woven on three separate looms in three contrasting colours, then interlocked by hand at a join called the petni — a stitch so dense the saree is, in truth, three sarees fused into one.',
-    look_for: [
-      'The petni — the inside seam should feel like a single weave, not a sewn join.',
-      'A heavy, dense silk — Kanjeevaram is built for a century of folding.',
-      'A temple-edged korvai border — counted, never printed.',
-    ],
-    pull_quote: 'Three sarees, fused at the petni, lived as one.',
-  },
-  {
-    id: 'mysore',
-    name: 'Mysore Silk',
-    region: 'Mysuru',
-    state: 'Karnataka',
-    era: 'since Tipu Sultan · 1780',
-    image: '/story/Mysore silk.webp',
-    palette: ['#1E1B3A', '#E2C98A', '#8C6B2F'],
-    intro:
-      'A state-sealed silk with a hologram of its own — quiet, crepe-soft, unbroken at the shine.',
-    origins:
-      'In 1780, Tipu Sultan sent emissaries to China for the silkworm and the mulberry — and built, in Mysore, an entirely new line of silk. The Karnataka State has held the secret ever since; each piece is sealed with a state-issued gold-foil hologram.',
-    technique:
-      'Woven on a power-loom and finished by hand. The zari is government-tested for purity, fed strand by strand into the border. The silk itself — a tight, unblended twist — gives the drape its quiet weight and famous unbroken shine.',
-    look_for: [
-      'The KSIC hologram — a gold-foil seal on the inside of the pallu.',
-      'A crepe-soft hand — the silk should fall, not glide.',
-      'A border zari that does not flake when rubbed between fingers.',
-    ],
-    pull_quote: 'Tipu Sultan sent for the worm and the mulberry alike.',
-  },
-  {
-    id: 'pochampally',
-    name: 'Pochampally',
-    region: 'Pochampally',
-    state: 'Telangana',
-    era: 'GI tag · 2005',
-    image: '/story/banarasi.webp', // TODO: replace with Pochampally photograph — banarasi.png is a temporary placeholder; no dedicated Pochampally image exists in /public/story yet.
-    palette: ['#6B0E1F', '#0E4D5C', '#E2C98A'],
-    intro:
-      'The first handloom in India to win a name of its own — geometry set in the thread, not on the surface.',
-    origins:
-      'A village of weavers in Telangana whose looms perfected the ikat tie-dye into a vocabulary the world calls Pochampally. In 2005 it became the first handloom weave in India to be granted a Geographical Indication tag — its own protected name.',
-    technique:
-      'Both the warp and the weft are tie-dyed before a single thread meets the loom. The pattern resolves only as the two halves meet — chevrons, diamonds, the telia-rumal chowka — a design that lived in the dyer’s hand before the body.',
-    look_for: [
-      'Identical pattern on the front and the back — dye in the thread, not on the surface.',
-      'A faint feathering at every motif edge — colour set before the weave.',
-      'The geometric chowka or telia-rumal repeat — the classical Pochampally vocabulary.',
-    ],
-    pull_quote: 'The first handloom to be granted a name of its own.',
-  },
-  {
-    id: 'gadwal',
-    name: 'Gadwal',
-    region: 'Jogulamba Gadwal',
-    state: 'Telangana',
-    era: 'since the Vijayanagara empire',
-    image: '/story/Gadwal.webp',
-    palette: ['#7E1D1D', '#C9A961', '#1B0E0A'],
-    intro:
-      'A cotton body for the day’s heat, a silk pallu for the temple — a saree that, by old reputation, folded into a matchbox.',
-    origins:
-      'From Gadwal town in the Jogulamba district, with a lineage tracing to the Vijayanagara empire — cotton body for the day’s heat, silk pallu for the temple. The Nizams of Hyderabad later patronised the looms; GI-tagged in 2008.',
-    technique:
-      'Fine cotton body, mulberry-silk border and pallu, interlocked at a hand-bonded join called the kupadam — the southern cousin of the Kanjeevaram petni. By old reputation, the saree folded into a matchbox.',
-    look_for: [
-      'The kupadam join — invisible from the front, a single thread at the inside seam.',
-      'A khadi-soft cotton body with a noticeably heavier pallu.',
-      'Temple-edged silk border in pomegranate, sandalwood, or sky.',
-    ],
-    pull_quote: 'A saree that, by reputation, folded into a matchbox.',
-  },
-  {
-    id: 'mangalagiri',
-    name: 'Mangalagiri',
-    region: 'Mangalagiri',
-    state: 'Andhra Pradesh',
-    era: 'written of since the 15th century',
-    image: '/story/Mangalgiri.webp',
-    palette: ['#0E4D5C', '#C9A961', '#6B0E1F'],
-    intro:
-      'Calm in the body, gold at the hem — the temple cotton of the Krishna river.',
-    origins:
-      'From a temple town on the banks of the Krishna in Andhra Pradesh. Mangalagiri cotton has been written about since the 15th century — offered first at the Lakshmi-Narasimha temple, then carried into Vijayanagara royal wardrobes. GI-tagged in 2011.',
-    technique:
-      'A tight, breathable cotton on a pit loom, with no motifs on the body. The artistry is at the hem — a single Nizam zari border, sometimes a contrast silk band. Calm body, gold edge.',
-    look_for: [
-      'No motifs on the body — Mangalagiri is celebrated for its calm.',
-      'A Nizam zari border that sits flush against the cotton, never raised.',
-      'A hand that softens with every wash, never coarsens.',
-    ],
-    pull_quote: 'Calm in the body, gold at the hem.',
-  },
-];
+// Map a backend Story record into the local Category shape used by the
+// tile / detail rendering. Missing text fields fall back to empty
+// strings so the tile doesn't crash; palette + look_for are padded to
+// three entries because the layout indexes into them directly.
+function storyToCategory(s: BackendStory): Category {
+  const pal = Array.isArray(s.palette) ? s.palette : [];
+  const look = Array.isArray(s.look_for) ? s.look_for : [];
+  return {
+    id: s.id,
+    name: s.name ?? '',
+    region: s.region ?? '',
+    state: s.state ?? '',
+    era: s.era ?? '',
+    image: s.image ?? '',
+    palette: [pal[0] ?? '#6B0E1F', pal[1] ?? '#0E4D5C', pal[2] ?? '#E2C98A'],
+    intro: s.intro ?? '',
+    origins: s.origins ?? '',
+    technique: s.technique ?? '',
+    look_for: [look[0] ?? '', look[1] ?? '', look[2] ?? ''],
+    pull_quote: s.pull_quote ?? '',
+  };
+}
 
 export default function HeritageScroll() {
   const sectionRef = useRef<HTMLElement | null>(null);
   const [openId, setOpenId] = useState<string | null>(null);
+  const [fetchedCategories, setFetchedCategories] = useState<Category[]>([]);
   const { unlocked } = useAudio();
+
+  // Fetch heritage stories on mount. Failures are silent — the fallback
+  // static list keeps the intro scroll rendering even without a backend.
+  useEffect(() => {
+    let cancelled = false;
+    storiesApi
+      .list()
+      .then((rows) => {
+        if (cancelled) return;
+        setFetchedCategories(rows.map(storyToCategory));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const CATEGORIES: Category[] = fetchedCategories;
 
   // Section reveal — runs once when the welcome gate unlocks. Header lifts
   // first, then the tiles fade up in sequence.
@@ -315,12 +246,15 @@ export default function HeritageScroll() {
               <a
                 href="/home"
                 onClick={leaveStory('/home')}
-                className="group inline-flex items-center gap-2 text-[#F2C99E] hover:text-ivory transition-colors"
+                className="group relative inline-flex items-center gap-3 rounded-full bg-gradient-to-b from-[#F5D89C] via-[#DDB067] to-[#B78846] text-white px-6 py-3 hover:from-[#FCE3AF] hover:via-[#E9BE7B] hover:to-[#C69553] transition-all duration-500 shadow-[0_10px_32px_-6px_rgba(184,134,63,0.7),0_2px_6px_-2px_rgba(76,42,14,0.4),inset_0_1px_0_rgba(255,240,210,0.6),inset_0_-1px_0_rgba(76,42,14,0.25)] hover:shadow-[0_16px_42px_-6px_rgba(224,174,109,0.9),0_3px_8px_-2px_rgba(76,42,14,0.4),inset_0_1px_0_rgba(255,240,210,0.7),inset_0_-1px_0_rgba(76,42,14,0.3)] whitespace-nowrap overflow-hidden"
               >
-                <span className="eyebrow text-[0.72rem] md:text-[0.78rem] tracking-[0.32em] font-semibold">
+                <span className="absolute inset-0 rounded-full bg-[radial-gradient(ellipse_at_top,rgba(255,240,210,0.35),transparent_60%)] pointer-events-none" />
+                <span className="absolute -inset-y-1 -left-full w-1/2 rotate-12 bg-gradient-to-r from-transparent via-white/40 to-transparent blur-sm transition-all duration-700 group-hover:left-full pointer-events-none" />
+                <span className="relative eyebrow text-[0.72rem] md:text-[0.78rem] tracking-[0.35em] font-bold text-white drop-shadow-[0_1px_2px_rgba(76,42,14,0.5)]">
                   Step inside
                 </span>
-                <span className="text-base leading-none translate-y-[-1px] transition-transform duration-300 group-hover:translate-x-1">→</span>
+                <span className="relative text-base leading-none translate-y-[-1px] text-white font-bold drop-shadow-[0_1px_2px_rgba(76,42,14,0.5)] transition-transform duration-300 group-hover:translate-x-1">→</span>
+                <span className="absolute inset-0 rounded-full border border-[#7A4A1E]/30 pointer-events-none" />
               </a>
             </div>
 

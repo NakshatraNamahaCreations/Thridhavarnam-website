@@ -9,9 +9,9 @@
 // the public GET routes we added locally, so it returns 401.
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  // 'http://localhost:5000/api';
+  'http://localhost:5000/api';
   // 'https://sareeebackend.onrender.com/api';
-  'https://api.thridhavarnam.com/api';
+  // 'https://api.thridhavarnam.com/api';
 
 // Shape returned by GET /api/products and /api/products/:id — kept loose
 // (all fields optional) because older documents seeded before the accordion
@@ -174,6 +174,54 @@ export const categoriesApi = {
 
 export const occasionsApi = {
   list: () => request<BackendOccasion[]>('/occasions'),
+};
+
+// Heritage Story — one entry per weave shown on the storefront intro
+// scroll. Admin-editable via the admin panel Stories page. All copy
+// fields are optional so partially-filled records still render.
+export type BackendStory = {
+  id: string;
+  name?: string;
+  region?: string;
+  state?: string;
+  era?: string;
+  image?: string;
+  palette?: string[];
+  intro?: string;
+  origins?: string;
+  technique?: string;
+  look_for?: string[];
+  pull_quote?: string;
+  order?: number;
+};
+
+export const storiesApi = {
+  list: () => request<BackendStory[]>('/stories'),
+};
+
+// Product review — submitted from the storefront product page, listed
+// on both the product page and in the admin panel. `createdAt` is an
+// ISO string returned by Mongoose's timestamps option.
+export type BackendReview = {
+  id: string;
+  productId: string;
+  name: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+};
+
+export const reviewsApi = {
+  list: (productId?: string) =>
+    request<BackendReview[]>(
+      productId ? `/reviews?productId=${encodeURIComponent(productId)}` : '/reviews',
+    ),
+  create: (payload: {
+    productId: string;
+    name: string;
+    rating: number;
+    comment?: string;
+  }) => request<BackendReview>('/reviews', { method: 'POST', body: payload }),
 };
 
 export const couponsApi = {

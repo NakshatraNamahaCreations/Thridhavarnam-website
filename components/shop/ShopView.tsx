@@ -447,19 +447,62 @@ export default function ShopView() {
 
           <div className="flex-1 min-w-0">
             {filtered.length === 0 ? (
-              <div className="text-center py-16 max-w-md mx-auto">
-                <h2 className="text-lg font-bold text-gray-900 mb-2">No results found</h2>
-                <p className="text-sm text-gray-600 mb-5">
-                  Try adjusting your filters to see more sarees.
-                </p>
-                <button
-                  type="button"
-                  onClick={onClearFilters}
-                  className="inline-block bg-gray-900 text-white px-6 py-2.5 text-sm font-bold uppercase tracking-wide hover:bg-[#75001F] transition-colors"
-                >
-                  Clear All Filters
-                </button>
-              </div>
+              (() => {
+                // "Coming Soon" panel fires only when the user is looking at
+                // a single weave with nothing else applied — i.e. they picked
+                // a category from the nav / rail and it has no products yet.
+                // Any other empty state (weave + colour + bracket, etc.) is
+                // more likely an over-filtered view, so we keep the generic
+                // "adjust filters" copy for those cases.
+                const isSoloWeave =
+                  filters.weaves.length === 1 &&
+                  filters.tiers.length === 0 &&
+                  filters.colors.length === 0 &&
+                  filters.occasions.length === 0 &&
+                  filters.flags.length === 0 &&
+                  !filters.bracket &&
+                  !filters.sale;
+                if (isSoloWeave) {
+                  const weaveName = filters.weaves[0];
+                  return (
+                    <div className="text-center py-16 max-w-md mx-auto">
+                      <div className="eyebrow text-[0.65rem] tracking-[0.4em] text-maroon/75 mb-3 font-semibold uppercase">
+                        {weaveName} · Unwrapping soon
+                      </div>
+                      <h2 className="font-display text-2xl md:text-3xl font-semibold text-ink mb-3">
+                        Almost ready to drape.
+                      </h2>
+                      <p className="text-sm text-ink/65 leading-relaxed mb-6">
+                        Our {weaveName} collection is still on the loom. Check
+                        back soon — or unfold the rest of the atelier in the
+                        meantime.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={onClearFilters}
+                        className="inline-block bg-gray-900 text-white px-6 py-2.5 text-sm font-bold uppercase tracking-wide hover:bg-[#75001F] transition-colors"
+                      >
+                        Explore all sarees
+                      </button>
+                    </div>
+                  );
+                }
+                return (
+                  <div className="text-center py-16 max-w-md mx-auto">
+                    <h2 className="text-lg font-bold text-gray-900 mb-2">No results found</h2>
+                    <p className="text-sm text-gray-600 mb-5">
+                      Try adjusting your filters to see more sarees.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={onClearFilters}
+                      className="inline-block bg-gray-900 text-white px-6 py-2.5 text-sm font-bold uppercase tracking-wide hover:bg-[#75001F] transition-colors"
+                    >
+                      Clear All Filters
+                    </button>
+                  </div>
+                );
+              })()
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-3 gap-y-6 lg:gap-x-4 lg:gap-y-7">
                 {filtered.map((saree, i) => (

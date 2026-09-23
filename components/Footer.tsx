@@ -82,7 +82,6 @@ export default function Footer() {
               <li><Link href="/shop?tier=festive" className="hover:text-ivory">Festive</Link></li>
               <li><Link href="/shop?tier=everyday" className="hover:text-ivory">Everyday</Link></li>
               <li><Link href="/bespoke" className="hover:text-ivory">Bespoke</Link></li>
-              <li><Link href="/shop?sale=1" className="hover:text-ivory">Sale</Link></li>
             </ul>
           </div>
 
