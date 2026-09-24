@@ -1,5 +1,4 @@
 import type { Metadata, Viewport } from 'next';
-import { Plus_Jakarta_Sans } from 'next/font/google';
 import localFont from 'next/font/local';
 import SmoothScroll from '@/components/SmoothScroll';
 import AudioProvider from '@/components/AudioProvider';
@@ -30,14 +29,18 @@ const blackMango = localFont({
 });
 
 // Plus Jakarta Sans — secondary body / UI face. Clean geometric sans.
-// Loaded via next/font/google for the optimal subset + self-hosting
-// pipeline. Only weights with real usage in the codebase are pulled —
-// 300 (light) has 13 occurrences and falls back gracefully to 400 if
-// dropped, but we keep it for the few atelier-prose passages that need
-// it. Larger weights (800/900) aren't requested anywhere.
-const sans = Plus_Jakarta_Sans({
-  weight: ['400', '500', '600', '700'],
-  subsets: ['latin'],
+// Self-hosted via next/font/local so the production build doesn't need
+// to reach fonts.googleapis.com — VPS builds were failing when Google's
+// CSS response came back in a shape the next/font loader couldn't parse
+// (User-Agent / HTTP/2 quirk on the host's outbound path). Same load
+// pipeline as Black Mango above.
+const sans = localFont({
+  src: [
+    { path: '../public/fonts/PlusJakartaSans-Regular.ttf', weight: '400', style: 'normal' },
+    { path: '../public/fonts/PlusJakartaSans-Medium.ttf', weight: '500', style: 'normal' },
+    { path: '../public/fonts/PlusJakartaSans-SemiBold.ttf', weight: '600', style: 'normal' },
+    { path: '../public/fonts/PlusJakartaSans-Bold.ttf', weight: '700', style: 'normal' },
+  ],
   variable: '--font-sans',
   display: 'swap',
 });
