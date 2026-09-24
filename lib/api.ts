@@ -9,9 +9,9 @@
 // the public GET routes we added locally, so it returns 401.
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  // 'http://localhost:5000/api';
+  'http://localhost:5000/api';
   // 'https://sareeebackend.onrender.com/api';
-  'https://api.thridhavarnam.com/api';
+  // 'https://api.thridhavarnam.com/api';
 
 // Shape returned by GET /api/products and /api/products/:id — kept loose
 // (all fields optional) because older documents seeded before the accordion
@@ -67,12 +67,20 @@ export type BackendCategory = {
   id: string;
   name: string;
   color?: string;
+  // Storefront "Shop by weave" rail fields — admin-managed.
+  image?: string;   // Cloudinary URL for the tile
+  region?: string;  // Subtitle under the name ("Kanchipuram")
+  order?: number;   // Ascending display order
+  active?: boolean; // Hide the tile when false
 };
 
 export type BackendOccasion = {
   id: string;
   name: string;
   color?: string;
+  image?: string;       // Cloudinary URL for the storefront home tile
+  fromAmount?: number;  // Range floor for the home tile ("₹X – ₹Y")
+  toAmount?: number;    // Range ceiling; 0 means open-ended ("From ₹X")
 };
 
 export type BackendCoupon = {
@@ -222,6 +230,46 @@ export const reviewsApi = {
     rating: number;
     comment?: string;
   }) => request<BackendReview>('/reviews', { method: 'POST', body: payload }),
+};
+
+// Home hero banner — one slide on the storefront Hero carousel.
+// Admin-managed via the Banners tab. If any banners are active on the
+// backend, the Hero renders them in place of the product-driven
+// default slides.
+export type BackendBanner = {
+  id: string;
+  // 'hero' for the home hero carousel (default), 'weave' for a
+  // Shop-by-weave tile image override.
+  type?: 'hero' | 'weave';
+  weave?: string;        // Category name; only set when type='weave'
+  title?: string;
+  subtitle?: string;
+  image?: string;
+  ctaLabel?: string;
+  ctaHref?: string;
+  order?: number;
+  active?: boolean;
+};
+
+export const bannersApi = {
+  list: () => request<BackendBanner[]>('/banners'),
+};
+
+// Home "Shop by price" tile — one entry per price bucket shown on the
+// storefront home. Admin-managed via the Price Buckets tab.
+export type BackendPriceBucket = {
+  id: string;
+  label?: string;
+  subtitle?: string;
+  image?: string;
+  href?: string;
+  startingPrice?: number;
+  order?: number;
+  active?: boolean;
+};
+
+export const priceBucketsApi = {
+  list: () => request<BackendPriceBucket[]>('/price-buckets'),
 };
 
 export const couponsApi = {

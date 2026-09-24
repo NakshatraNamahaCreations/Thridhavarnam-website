@@ -1,9 +1,13 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
+import { formatINR } from '@/lib/sarees';
+import { occasionsApi, type BackendOccasion } from '@/lib/api';
 
 type Tile = {
+  key: string;
   href: string;
   title: string;
   caption: string;
@@ -11,14 +15,19 @@ type Tile = {
   badge?: string;
 };
 
-const TILES: Tile[] = [
+// Fallback tiles used when the backend has no active occasions with
+// images. Keeps the shop-page section from going empty on a fresh
+// database.
+const FALLBACK_TILES: Tile[] = [
   {
+    key: 'bridal',
     href: '/shop?tier=bridal',
     title: 'Bridal Wear',
     caption: 'Wedding-ready bridal silk',
     image: '/product/bridal.webp',
   },
   {
+    key: 'festive',
     href: '/shop?tier=festive',
     title: 'Festive Wear',
     caption: 'Festive & reception sarees',
@@ -26,6 +35,7 @@ const TILES: Tile[] = [
     badge: 'BESTSELLER',
   },
   {
+    key: 'banarasi',
     href: '/shop?weave=Banarasi',
     title: 'Banarasi Sarees',
     caption: 'Pure silk weaves',
@@ -33,13 +43,55 @@ const TILES: Tile[] = [
   },
 ];
 
+function priceCaption(o: BackendOccasion): string {
+  const from = o.fromAmount && o.fromAmount > 0 ? o.fromAmount : 0;
+  const to = o.toAmount && o.toAmount > 0 ? o.toAmount : 0;
+  if (from && to) return `${formatINR(from)} – ${formatINR(to)}`;
+  if (from) return `From ${formatINR(from)}`;
+  if (to) return `Up to ${formatINR(to)}`;
+  return `Curated ${o.name.toLowerCase()} looks`;
+}
+
+function occasionToTile(o: BackendOccasion): Tile {
+  return {
+    key: o.id || o.name,
+    href: `/shop?${new URLSearchParams({ occasion: o.id || o.name }).toString()}`,
+    title: o.name,
+    caption: priceCaption(o),
+    image: o.image ?? '',
+  };
+}
+
 export default function CategoryTiles() {
+  const [tiles, setTiles] = useState<Tile[]>(FALLBACK_TILES);
+
+  useEffect(() => {
+    let cancelled = false;
+    occasionsApi
+      .list()
+      .then((rows) => {
+        if (cancelled) return;
+        // Occasion tiles need an image to render meaningfully — skip
+        // any that were configured without one.
+        const withImages = rows.filter((o) => o.image);
+        if (withImages.length > 0) {
+          setTiles(withImages.map(occasionToTile));
+        }
+      })
+      .catch(() => {
+        // Silent — the fallback tiles already sit in state.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   return (
     <section className="bg-white border-b border-gray-200">
       <div className="max-w-[1720px] mx-auto px-4 lg:px-8 py-6 lg:py-8">
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-base md:text-lg font-bold uppercase tracking-wider text-gray-900">
-            Shop by Category
+            Shop by Occasion
           </h2>
           <Link
             href="/shop"
@@ -49,19 +101,21 @@ export default function CategoryTiles() {
           </Link>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-3 lg:gap-4">
-          {TILES.map((tile) => (
+          {tiles.map((tile) => (
             <Link
-              key={tile.href + tile.title}
+              key={tile.key}
               href={tile.href}
               className="group relative block aspect-[4/5] md:aspect-[3/4] overflow-hidden bg-gray-100"
             >
-              <Image
-                src={tile.image}
-                alt={tile.title}
-                fill
-                sizes="(max-width: 768px) 100vw, 33vw"
-                className="object-cover transition-transform duration-500 group-hover:scale-105"
-              />
+              {tile.image && (
+                <Image
+                  src={tile.image}
+                  alt={tile.title}
+                  fill
+                  sizes="(max-width: 768px) 100vw, 33vw"
+                  className="object-cover transition-transform duration-500 group-hover:scale-105"
+                />
+              )}
               <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent" />
 
               {tile.badge && (

@@ -629,7 +629,7 @@ export default function CheckoutPopup() {
                 </div>
               </div>
               <div className="text-[10px] text-ink/55 max-w-[180px] text-right leading-snug">
-                256-bit SSL · Insured dispatch · 48 Hrs returns
+                256-bit SSL · Insured dispatch · 24 Hrs returns
               </div>
             </div>
 

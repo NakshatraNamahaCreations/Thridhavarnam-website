@@ -99,10 +99,10 @@ export function PolicyContactStrip({
       <div className="flex flex-col items-stretch md:items-end gap-2 text-xs shrink-0">
         <div className="flex flex-wrap gap-2 md:justify-end">
           <a
-            href="mailto:support@thridhavarnam.com"
+            href="mailto:thridhavaranam@gmail.com"
             className="bg-gray-900 text-white px-4 py-2 font-semibold tracking-wide hover:bg-[#75001F] transition-colors text-center"
           >
-            support@thridhavarnam.com
+            thridhavaranam@gmail.com
           </a>
           <a
             href="tel:+919949528787"

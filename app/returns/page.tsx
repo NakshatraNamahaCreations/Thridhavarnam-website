@@ -98,10 +98,10 @@ export default function ReturnsPage() {
             <li>
               <strong>Email:</strong>{' '}
               <a
-                href="mailto:support@thridhavarnam.com"
+                href="mailto:thridhavaranam@gmail.com"
                 className="text-[#75001F] underline underline-offset-2 font-semibold"
               >
-                support@thridhavarnam.com
+                thridhavaranam@gmail.com
               </a>
             </li>
             <li>

@@ -30,7 +30,7 @@ const FAQS: { q: string; a: string }[] = [
   },
   {
     q: 'Can I return a saree?',
-    a: 'Exchange and returns are available within 48 Hrs of delivery. Saree must be unworn and in original packaging. Customised pieces are non-returnable.',
+    a: 'Exchange and returns are available within 24 Hrs of delivery. Saree must be unworn and in original packaging. Customised pieces are non-returnable.',
   },
 ];
 

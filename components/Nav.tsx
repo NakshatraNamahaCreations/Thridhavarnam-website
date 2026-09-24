@@ -148,7 +148,7 @@ function NavInner({ searchParams }: { searchParams: URLSearchParams | null }) {
         const links: SectionLink[] = rows
           .filter((o) => o.name)
           .map((o) => ({
-            href: `/shop?${new URLSearchParams({ occasion: o.name }).toString()}`,
+            href: `/shop?${new URLSearchParams({ occasion: o.id || o.name }).toString()}`,
             label: o.name,
           }));
         setDynamicSections(links);

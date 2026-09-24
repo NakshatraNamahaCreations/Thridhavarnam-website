@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import clsx from 'clsx';
 import { SAREES, formatINR, TIERS, productSlug, type Saree } from '@/lib/sarees';
 import { useShop } from '@/lib/shop-store';
-import { productsApi, backendToSaree } from '@/lib/api';
+import { productsApi, backendToSaree, bannersApi, type BackendBanner } from '@/lib/api';
 
 // Featured hero sarees — actual products, not lifestyle vibes.
 // Each slide is anchored to a real id from lib/sarees.ts so the price,
@@ -51,6 +51,33 @@ export default function Hero() {
   // Undefined until the fetch resolves — the slide falls back to the
   // static entry so the banner still paints during SSR / cold load.
   const [liveById, setLiveById] = useState<Record<string, Saree>>({});
+
+  // Admin-managed hero banners (from the Banners tab in the admin panel).
+  // If any active banners are configured, we render them in place of the
+  // hard-coded product-driven slides below.
+  const [banners, setBanners] = useState<BackendBanner[]>([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    bannersApi
+      .list()
+      .then((rows) => {
+        if (cancelled) return;
+        const active = rows
+          // Only 'hero'-type banners belong on the home carousel.
+          // Missing type is treated as 'hero' for backward compat with
+          // records created before the type field existed.
+          .filter((b) => (!b.type || b.type === 'hero') && b.active !== false && b.image)
+          .sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        setBanners(active);
+      })
+      .catch(() => {
+        // Silent — no banners means we fall back to product slides.
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -105,6 +132,8 @@ export default function Hero() {
 
   const next = () => setActive((a) => (a + 1) % slides.length);
   const prev = () => setActive((a) => (a - 1 + slides.length) % slides.length);
+
+  if (banners.length > 0) return <BannerHero banners={banners} />;
 
   return (
     <section className="relative w-full h-[88vh] min-h-[460px] sm:min-h-[560px] md:min-h-[640px] max-h-[920px] bg-[#1B0E0A] overflow-hidden">
@@ -319,6 +348,123 @@ export default function Hero() {
         <span className="text-ivory/40">/</span>
         <span>{String(slides.length).padStart(2, '0')}</span>
       </div>
+    </section>
+  );
+}
+
+// Admin-driven hero when any active banners exist. Simpler layout than
+// the product carousel above: full-bleed image + centered title /
+// subtitle / CTA overlay. Auto-rotates every 7 seconds and supports
+// arrow / thumbnail navigation.
+function BannerHero({ banners }: { banners: BackendBanner[] }) {
+  const [active, setActive] = useState(0);
+
+  useEffect(() => {
+    if (banners.length <= 1) return;
+    const id = setInterval(() => {
+      setActive((a) => (a + 1) % banners.length);
+    }, 7000);
+    return () => clearInterval(id);
+  }, [banners.length]);
+
+  const next = () => setActive((a) => (a + 1) % banners.length);
+  const prev = () => setActive((a) => (a - 1 + banners.length) % banners.length);
+
+  return (
+    <section className="relative w-full h-[88vh] min-h-[460px] sm:min-h-[560px] md:min-h-[640px] max-h-[920px] bg-[#1B0E0A] overflow-hidden">
+      {banners.map((b, i) => (
+        <div
+          key={b.id}
+          className="absolute inset-0 transition-opacity duration-1000"
+          style={{
+            opacity: i === active ? 1 : 0,
+            pointerEvents: i === active ? 'auto' : 'none',
+          }}
+          aria-hidden={i !== active}
+        >
+          {b.image && (
+            <Image
+              src={b.image}
+              alt={b.title ?? ''}
+              fill
+              priority={i === 0}
+              sizes="100vw"
+              className="object-cover"
+            />
+          )}
+          {/* Contrast overlay so any title/subtitle stays legible over
+              light imagery. Sits between the image and the copy. */}
+          <div className="absolute inset-0 bg-gradient-to-r from-[#1B0E0A]/70 via-[#1B0E0A]/45 to-transparent pointer-events-none" />
+
+          <div className="relative h-full max-w-[1720px] mx-auto px-6 md:px-10 lg:px-14 flex items-center">
+            <div className="max-w-xl text-ivory">
+              {b.title && (
+                <h1 className="text-3xl md:text-5xl lg:text-6xl font-bold leading-tight mb-5 drop-shadow-[0_2px_10px_rgba(0,0,0,0.4)]">
+                  {b.title}
+                </h1>
+              )}
+              {b.subtitle && (
+                <p className="text-sm md:text-lg text-ivory/90 leading-relaxed mb-7 max-w-lg">
+                  {b.subtitle}
+                </p>
+              )}
+              {b.ctaLabel && b.ctaHref && (
+                <Link
+                  href={b.ctaHref}
+                  className="inline-flex items-center gap-2 bg-ivory text-ink px-7 py-3.5 text-xs font-bold uppercase tracking-wider rounded-sm hover:bg-gold transition-colors"
+                >
+                  {b.ctaLabel}
+                  <span aria-hidden>→</span>
+                </Link>
+              )}
+            </div>
+          </div>
+        </div>
+      ))}
+
+      {banners.length > 1 && (
+        <>
+          {/* Thumbnails */}
+          <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2">
+            {banners.map((b, i) => (
+              <button
+                key={b.id}
+                onClick={() => setActive(i)}
+                aria-label={`Show slide ${i + 1}`}
+                className={clsx(
+                  'h-1.5 rounded-full transition-all duration-500',
+                  i === active ? 'w-10 bg-gold' : 'w-5 bg-ivory/50 hover:bg-ivory/80',
+                )}
+              />
+            ))}
+          </div>
+
+          {/* Arrows */}
+          <button
+            onClick={prev}
+            className="absolute left-4 lg:left-6 top-1/2 -translate-y-1/2 bg-ivory/85 hover:bg-ivory text-ink w-11 h-11 rounded-full items-center justify-center transition-colors hidden md:flex shadow-md z-10"
+            aria-label="Previous slide"
+          >
+            ‹
+          </button>
+          <button
+            onClick={next}
+            className="absolute right-4 lg:right-6 top-1/2 -translate-y-1/2 bg-ivory/85 hover:bg-ivory text-ink w-11 h-11 rounded-full items-center justify-center transition-colors hidden md:flex shadow-md z-10"
+            aria-label="Next slide"
+          >
+            ›
+          </button>
+
+          {/* Slide counter */}
+          <div className="absolute top-8 right-8 z-10 flex items-center gap-2 bg-ink/50 backdrop-blur-sm px-3 py-1.5 rounded-full text-xs font-semibold text-ivory">
+            <span className="text-gold-soft">
+              {String(active + 1).padStart(2, '0')}
+            </span>
+            <span className="text-ivory/40">/</span>
+            <span>{String(banners.length).padStart(2, '0')}</span>
+          </div>
+        </>
+      )}
     </section>
   );
 }

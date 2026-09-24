@@ -91,10 +91,10 @@ export default function LegalShell({
             <div className="mt-10 pt-6 border-t border-gray-200 text-xs text-gray-500">
               Questions? Email{' '}
               <a
-                href="mailto:support@thridhavarnam.com"
+                href="mailto:thridhavaranam@gmail.com"
                 className="underline underline-offset-2 hover:text-gray-900"
               >
-                support@thridhavarnam.com
+                thridhavaranam@gmail.com
               </a>{' '}
               or call +91 99495 28787 (Monday – Saturday · 10:00 AM – 7:00 PM (IST)).
             </div>

@@ -216,7 +216,23 @@ export default function ShopView() {
       );
     }
     if (filters.occasions.length) {
-      items = items.filter((s) => s.occasion && filters.occasions.includes(s.occasion));
+      // Product records may store either an occasion's id (what the
+      // admin Products form saves — <option value={o.id}>) or its name
+      // (older data or storefront-created links). URL params can also
+      // arrive as either. Expand every filter value into both its id
+      // and name via the backend occasion list so a click on ANY tile
+      // matches products regardless of which form was stored.
+      const wanted = new Set<string>();
+      for (const val of filters.occasions) {
+        const match = occasions.find((o) => o.id === val || o.name === val);
+        if (match) {
+          if (match.id) wanted.add(match.id);
+          if (match.name) wanted.add(match.name);
+        } else {
+          wanted.add(val);
+        }
+      }
+      items = items.filter((s) => s.occasion && wanted.has(s.occasion));
     }
     if (filters.flags.length) {
       items = items.filter((s) => Array.isArray(s.flags) && filters.flags.some((f) => s.flags!.includes(f)));

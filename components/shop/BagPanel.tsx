@@ -240,7 +240,7 @@ export default function BagPanel({
                 <div className="mt-5 pt-4 border-t border-ink/10 space-y-2">
                   <InfoRow icon="truck" label="Free shipping across India on every order" />
                   <InfoRow icon="shield" label="Insured & tracked dispatch in 5–7 days" />
-                  <InfoRow icon="return" label="Exchange & returns within 48 Hrs of delivery" />
+                  <InfoRow icon="return" label="Exchange & returns within 24 Hrs of delivery" />
                 </div>
               </div>
             </aside>

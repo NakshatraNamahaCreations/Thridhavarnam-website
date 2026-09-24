@@ -273,7 +273,7 @@ export default function ContactView() {
               icon={<IconMail />}
               title="Email"
               body="Care team — replies within one working day."
-              action={{ href: 'mailto:support@thridhavarnam.com', label: 'support@thridhavarnam.com' }}
+              action={{ href: 'mailto:thridhavaranam@gmail.com', label: 'thridhavaranam@gmail.com' }}
             />
             <ContactCard
               icon={<IconPhone />}

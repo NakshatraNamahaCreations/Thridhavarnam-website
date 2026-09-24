@@ -1,21 +1,10 @@
 'use client';
 
-import { useRef, useState, useEffect, useCallback } from 'react';
+import { useRef, useState, useEffect, useCallback, useMemo } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
-import { SAREES } from '@/lib/sarees';
+import { bannersApi, categoriesApi, type BackendCategory } from '@/lib/api';
 
-// Count of pieces per weave (for the "X pieces" badge)
-const weaveCounts: Record<string, number> = {};
-SAREES.forEach((s) => {
-  weaveCounts[s.weave] = (weaveCounts[s.weave] ?? 0) + 1;
-});
-
-// Weave catalog for the home rail. Mirrors the navbar order. Image is
-// optional — categories without paired photography on disk fall back to
-// a brand-toned placeholder tile (see render block below).
-// Spelling on disk: kanjeevaram.png, Mysore silk.png, Patola.png — encoded
-// so the path stays correct.
 type Weave = {
   id: string;
   name: string;
@@ -24,76 +13,52 @@ type Weave = {
   place: string;
 };
 
-const weaves: Weave[] = [
-  {
-    id: 'kanjivaram',
-    name: 'Kanjeevaram',
-    weaveKey: 'Kanjivaram',
-    image: '/Byweaves/kanjeevaram.webp',
-    place: 'Kanchipuram',
-  },
-  {
-    id: 'banarasi',
-    name: 'Banarasi',
-    weaveKey: 'Banarasi',
-    image: '/Byweaves/banarasi.webp',
-    place: 'Varanasi',
-  },
-  {
-    id: 'mysore',
-    name: 'Mysore Silk',
-    weaveKey: 'Mysore Silk',
-    image: '/Byweaves/Mysore%20silk.webp',
-    place: 'Mysuru',
-  },
-  {
-    id: 'mangalagiri',
-    name: 'Mangalagiri',
-    weaveKey: 'Mangalagiri',
-    image: '/Byweaves/mangalagiri.webp',
-    place: 'Andhra Pradesh',
-  },
-  {
-    id: 'pochampally',
-    name: 'Pochampally',
-    weaveKey: 'Pochampally',
-    image: '/Byweaves/Pochampally.webp',
-    place: 'Telangana',
-  },
-  {
-    id: 'gadwal',
-    name: 'Gadwal',
-    weaveKey: 'Gadwal',
-    image: '/Byweaves/Gadwal.webp',
-    place: 'Telangana',
-  },
-  {
-    id: 'patola',
-    name: 'Patola',
-    weaveKey: 'Patola',
-    image: '/Byweaves/Patola.webp',
-    place: 'Patan',
-  },
-  {
-    id: 'fancy',
-    name: 'Fancy Sarees',
-    weaveKey: 'Fancy Sarees',
-    image: '/Byweaves/fancy-saree.webp',
-    place: 'Contemporary',
-  },
-  {
-    id: 'mixed-pattu',
-    name: 'Mixed Pattu Sarees',
-    weaveKey: 'Mixed Pattu Sarees',
-    image: '/Byweaves/Mixed-pattu.webp',
-    place: 'Fusion drapes',
-  },
-];
-
 export default function WeaveRail() {
   const railRef = useRef<HTMLDivElement | null>(null);
   const [canPrev, setCanPrev] = useState(false);
   const [canNext, setCanNext] = useState(true);
+
+  const [categories, setCategories] = useState<BackendCategory[]>([]);
+
+  // Admin-uploaded weave-tile image overrides from the Banners tab.
+  // Keyed by weave name — wins over the Category's own `image` field so
+  // marketing can rotate the tile without editing the Category record.
+  const [weaveImages, setWeaveImages] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([
+      categoriesApi.list().catch(() => [] as BackendCategory[]),
+      bannersApi.list().catch(() => []),
+    ]).then(([cats, banners]) => {
+      if (cancelled) return;
+      setCategories(cats);
+      const map: Record<string, string> = {};
+      for (const b of banners) {
+        if (b.type === 'weave' && b.active !== false && b.weave && b.image) {
+          map[b.weave] = b.image;
+        }
+      }
+      setWeaveImages(map);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const weaves = useMemo<Weave[]>(
+    () =>
+      categories
+        .filter((c) => c.active !== false && c.name)
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          weaveKey: c.name,
+          image: c.image || undefined,
+          place: c.region || '',
+        })),
+    [categories],
+  );
 
   const updateButtons = useCallback(() => {
     const el = railRef.current;
@@ -112,7 +77,7 @@ export default function WeaveRail() {
       el.removeEventListener('scroll', updateButtons);
       window.removeEventListener('resize', updateButtons);
     };
-  }, [updateButtons]);
+  }, [updateButtons, weaves.length]);
 
   const scrollBy = (dir: 1 | -1) => {
     const el = railRef.current;
@@ -163,7 +128,8 @@ export default function WeaveRail() {
           className="flex gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-2"
         >
           {weaves.map((w) => {
-            const count = weaveCounts[w.weaveKey] ?? 0;
+            // Banner override wins over the Category's own tile image.
+            const image = weaveImages[w.weaveKey] ?? weaveImages[w.name] ?? w.image;
             return (
               <Link
                 key={w.id}
@@ -172,9 +138,9 @@ export default function WeaveRail() {
                 className="group shrink-0 w-[calc((100%-12px)/2)] md:w-[calc((100%-32px)/3)] lg:w-[calc((100%-48px)/4)] xl:w-[calc((100%-64px)/5)] snap-start"
               >
                 <div className="relative aspect-square overflow-hidden bg-ivory no-pattern rounded-sm">
-                  {w.image ? (
+                  {image ? (
                     <Image
-                      src={w.image}
+                      src={image}
                       alt={w.name}
                       fill
                       sizes="(max-width: 640px) 46vw, (max-width: 768px) 46vw, (max-width: 1024px) 30vw, (max-width: 1280px) 23vw, 18vw"
@@ -192,12 +158,9 @@ export default function WeaveRail() {
                   <div className="text-base md:text-lg font-bold text-ink leading-tight">
                     {w.name}
                   </div>
-                  <div className="flex items-center justify-between mt-1">
-                    <div className="text-[0.7rem] text-ink/55">{w.place}</div>
-                    <div className="text-[0.7rem] font-semibold text-ink/65">
-                      {count} {count === 1 ? 'piece' : 'pieces'}
-                    </div>
-                  </div>
+                  {w.place && (
+                    <div className="text-[0.7rem] text-ink/55 mt-1">{w.place}</div>
+                  )}
                 </div>
               </Link>
             );

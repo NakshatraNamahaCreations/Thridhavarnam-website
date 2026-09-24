@@ -52,14 +52,12 @@ export default function ProductInfo({
   };
   const colorways = useMemo(() => getColorways(saree), [saree]);
   const selectedColor = colorways.find((c) => c.id === colorId) ?? colorways[0];
-  const [blouseOption, setBlouseOption] = useState<'unstitched' | 'stitched'>('unstitched');
   const [preDrape, setPreDrape] = useState(false);
   const [showPreDrapeInfo, setShowPreDrapeInfo] = useState(false);
   const [shareNote, setShareNote] = useState<string | null>(null);
 
   const discount = mrp ? Math.round(((mrp - saree.price) / mrp) * 100) : 0;
-  const stitchingFee = blouseOption === 'stitched' ? 800 : 0;
-  const total = saree.price + stitchingFee + (preDrape ? PRE_DRAPE_PRICE : 0);
+  const total = saree.price + (preDrape ? PRE_DRAPE_PRICE : 0);
 
   const onShare = async () => {
     if (typeof window === 'undefined') return;
@@ -183,31 +181,6 @@ export default function ProductInfo({
         </div>
       )}
 
-      {/* Blouse stitching */}
-      <div className="mb-5">
-        <div className="text-sm font-semibold text-gray-900 mb-2">
-          Blouse Stitching Option : <span className="font-normal text-gray-700">
-            {blouseOption === 'unstitched' ? 'Unstitched' : 'Stitched (+₹800)'}
-          </span>
-        </div>
-        <div className="flex gap-2">
-          {(['unstitched', 'stitched'] as const).map((opt) => (
-            <button
-              key={opt}
-              type="button"
-              onClick={() => setBlouseOption(opt)}
-              className={`px-4 py-2 text-sm font-semibold border transition-colors ${
-                blouseOption === opt
-                  ? 'border-gray-900 bg-gray-900 text-white'
-                  : 'border-gray-300 text-gray-900 hover:border-gray-900'
-              }`}
-            >
-              {opt === 'unstitched' ? 'Unstitched' : 'Stitched'}
-            </button>
-          ))}
-        </div>
-      </div>
-
       {/* Add-on: pre-drape */}
       <div className="border-t border-gray-200">
         <label className="flex items-start gap-3 py-3 cursor-pointer">
@@ -303,7 +276,7 @@ export default function ProductInfo({
       {/* Trust quartet */}
       <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-3 pt-4 border-t border-gray-200">
         <TrustItem icon="percent" label="100% Purchase Protection" />
-        <TrustItem icon="return" label="Exchange & returns within 48 Hrs*" />
+        <TrustItem icon="return" label="Exchange & returns within 24 Hrs*" />
         <TrustItem icon="star" label="Assured Quality" />
         <TrustItem icon="truck" label="Free shipping across India" />
       </div>

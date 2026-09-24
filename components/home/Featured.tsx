@@ -1,19 +1,26 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { type Saree, formatINR, TIERS, productSlug } from '@/lib/sarees';
-import { productsApi, backendToSaree } from '@/lib/api';
+import { productsApi, backendToSaree, occasionsApi, type BackendOccasion } from '@/lib/api';
 import WishlistButton from '@/components/shop/WishlistButton';
 import AddToCartButton from '@/components/shop/AddToCartButton';
 
-type Tab = 'new' | 'bridal' | 'festive' | 'everyday';
+type TabDef = { id: string; label: string; filter: (s: Saree) => boolean };
 
-// "New In" is driven by the admin's `new_in` flag, everything else by tier
-// (which itself is driven by the admin's Occasion tag).
-const tabs: { id: Tab; label: string; filter: (s: Saree) => boolean }[] = [
-  { id: 'new', label: 'New In', filter: (s) => Array.isArray(s.flags) && s.flags.includes('new_in') },
+// "New In" is always first — driven by the admin's `new_in` flag. Every
+// tab after that is one backend Occasion (filtered by the product's
+// `occasion` field). Falls back to Bridal / Festive / Everyday tier
+// filters if the backend has no occasions yet.
+const NEW_IN_TAB: TabDef = {
+  id: 'new',
+  label: 'New In',
+  filter: (s) => Array.isArray(s.flags) && s.flags.includes('new_in'),
+};
+
+const FALLBACK_TIER_TABS: TabDef[] = [
   { id: 'bridal', label: 'Bridal', filter: (s) => s.tier === 'bridal' },
   { id: 'festive', label: 'Festive', filter: (s) => s.tier === 'festive' },
   { id: 'everyday', label: 'Everyday', filter: (s) => s.tier === 'everyday' },
@@ -55,8 +62,12 @@ const productMeta: Record<string, { rating: number; reviews: number }> = {
 };
 
 export default function Featured() {
-  const [tab, setTab] = useState<Tab>('new');
+  const [tab, setTab] = useState<string>('new');
   const [catalog, setCatalog] = useState<Saree[]>([]);
+  const [occasions, setOccasions] = useState<BackendOccasion[]>([]);
+  const railRef = useRef<HTMLDivElement | null>(null);
+  const [canPrev, setCanPrev] = useState(false);
+  const [canNext, setCanNext] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
@@ -66,12 +77,66 @@ export default function Featured() {
         if (!cancelled) setCatalog(rows.map(backendToSaree));
       })
       .catch(() => {});
+    occasionsApi
+      .list()
+      .then((rows) => {
+        if (!cancelled) setOccasions(rows.filter((o) => o.name));
+      })
+      .catch(() => {});
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const items = catalog.filter(tabs.find((t) => t.id === tab)!.filter).slice(0, 8);
+  const tabs = useMemo<TabDef[]>(() => {
+    if (occasions.length > 0) {
+      const occasionTabs: TabDef[] = occasions.map((o) => ({
+        id: o.id || o.name,
+        label: o.name,
+        // Product records may store either the occasion's id (what the
+        // admin dropdown submits) or its name — match on both.
+        filter: (s) => s.occasion === o.id || s.occasion === o.name,
+      }));
+      return [NEW_IN_TAB, ...occasionTabs];
+    }
+    return [NEW_IN_TAB, ...FALLBACK_TIER_TABS];
+  }, [occasions]);
+
+  const activeTab = tabs.find((t) => t.id === tab) ?? tabs[0];
+  const items = catalog.filter(activeTab.filter).slice(0, 12);
+
+  const updateButtons = useCallback(() => {
+    const el = railRef.current;
+    if (!el) return;
+    setCanPrev(el.scrollLeft > 4);
+    setCanNext(el.scrollLeft + el.clientWidth < el.scrollWidth - 4);
+  }, []);
+
+  useEffect(() => {
+    updateButtons();
+    const el = railRef.current;
+    if (!el) return;
+    el.addEventListener('scroll', updateButtons, { passive: true });
+    window.addEventListener('resize', updateButtons);
+    return () => {
+      el.removeEventListener('scroll', updateButtons);
+      window.removeEventListener('resize', updateButtons);
+    };
+  }, [updateButtons, items.length]);
+
+  // Reset scroll to the start when the tab changes so a stale scroll
+  // position doesn't leave the new tab's rail already scrolled halfway.
+  useEffect(() => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollTo({ left: 0, behavior: 'auto' });
+  }, [tab]);
+
+  const scrollBy = (dir: 1 | -1) => {
+    const el = railRef.current;
+    if (!el) return;
+    el.scrollBy({ left: dir * (el.clientWidth + 16), behavior: 'smooth' });
+  };
 
   return (
     <section className="bg-bone py-10 md:py-14">
@@ -80,12 +145,32 @@ export default function Featured() {
           <h2 className="font-display text-2xl md:text-3xl font-semibold text-ink">
             New arrivals
           </h2>
-          <Link
-            href="/shop"
-            className="text-sm font-semibold text-ink hover:text-maroon transition-colors underline underline-offset-4"
-          >
-            View All
-          </Link>
+          <div className="flex items-center gap-4">
+            <Link
+              href="/shop"
+              className="text-sm font-semibold text-ink hover:text-maroon transition-colors underline underline-offset-4"
+            >
+              View All
+            </Link>
+            <div className="hidden md:flex items-center gap-2">
+              <button
+                onClick={() => scrollBy(-1)}
+                disabled={!canPrev}
+                aria-label="Scroll left"
+                className="w-9 h-9 rounded-full border border-ink/20 flex items-center justify-center text-ink hover:bg-maroon-deep hover:text-ivory disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                ‹
+              </button>
+              <button
+                onClick={() => scrollBy(1)}
+                disabled={!canNext}
+                aria-label="Scroll right"
+                className="w-9 h-9 rounded-full border border-ink/20 flex items-center justify-center text-ink hover:bg-maroon-deep hover:text-ivory disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                ›
+              </button>
+            </div>
+          </div>
         </div>
 
         {/* Tabs */}
@@ -105,7 +190,10 @@ export default function Featured() {
           ))}
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4">
+        <div
+          ref={railRef}
+          className="flex gap-3 md:gap-4 overflow-x-auto no-scrollbar snap-x snap-mandatory pb-2"
+        >
           {items.map((saree) => {
             const tierTitle = saree.tier in TIERS ? TIERS[saree.tier].title : '';
             const meta = productMeta[saree.id] ?? { rating: 4.7, reviews: 50 };
@@ -118,7 +206,7 @@ export default function Featured() {
               <Link
                 key={saree.id}
                 href={`/shop/${productSlug(saree)}`}
-                className="group block bg-white rounded-sm overflow-hidden"
+                className="group shrink-0 w-[calc((100%-12px)/2)] md:w-[calc((100%-32px)/3)] lg:w-[calc((100%-48px)/4)] snap-start block bg-white rounded-sm overflow-hidden"
               >
                 <div className="relative aspect-[4/5] overflow-hidden bg-bone">
                   <Image

@@ -1,12 +1,8 @@
 import Link from 'next/link';
 
 const socials: { label: string; href: string; icon: React.ReactNode }[] = [
-  { label: 'Instagram', href: 'https://instagram.com/tridhavarnam', icon: <IconInstagram /> },
-  { label: 'Facebook', href: 'https://facebook.com/tridhavarnam', icon: <IconFacebook /> },
-  { label: 'Pinterest', href: 'https://pinterest.com/tridhavarnam', icon: <IconPinterest /> },
-  { label: 'YouTube', href: 'https://youtube.com/@tridhavarnam', icon: <IconYouTube /> },
-  { label: 'WhatsApp', href: 'https://wa.me/919949528787', icon: <IconWhatsApp /> },
-  { label: 'X', href: 'https://x.com/tridhavarnam', icon: <IconX /> },
+  { label: 'Instagram', href: 'https://www.instagram.com/thridhavarnam?stkn=MW95Y2FnM21xdnI4OA==', icon: <IconInstagram /> },
+  { label: 'YouTube', href: 'https://youtube.com/@thridhavarnam?si=d_5bYkuk34eMHPrG', icon: <IconYouTube /> },
 ];
 
 export default function Footer() {
@@ -64,10 +60,10 @@ export default function Footer() {
                   Email us
                 </div>
                 <a
-                  href="mailto:support@thridhavarnam.com"
+                  href="mailto:thridhavaranam@gmail.com"
                   className="text-ivory/75 hover:text-ivory break-all"
                 >
-                  support@thridhavarnam.com
+                  thridhavaranam@gmail.com
                 </a>
               </div>
             </div>
