@@ -218,7 +218,6 @@ export default function BagPanel({
                   value={formatINR(cartSubtotal)}
                 />
                 <Row label="Shipping" value="FREE" highlight />
-                <Row label="Estimated tax" value="At checkout" muted />
                 <div className="h-px bg-ink/15 my-3" />
                 <Row label="Total" value={formatINR(cartSubtotal)} strong />
 
