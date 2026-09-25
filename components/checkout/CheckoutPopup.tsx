@@ -23,8 +23,12 @@ import {
 } from '@/lib/api';
 import { openRazorpayCheckout } from '@/lib/razorpay';
 
+type ShipMethod = 'standard' | 'express';
 type PayMethod = 'upi' | 'card' | 'netbanking';
 type OrderItem = { saree: (typeof SAREES)[number]; qty: number };
+
+const EXPRESS_FEE = 500;
+const GST_RATE = 0.05;
 
 export default function CheckoutPopup() {
   const router = useRouter();
@@ -49,6 +53,7 @@ export default function CheckoutPopup() {
 
   const itemCount = items.reduce((sum, i) => sum + i.qty, 0);
 
+  const [shipMethod, setShipMethod] = useState<ShipMethod>('standard');
   const [payMethod, setPayMethod] = useState<PayMethod>('upi');
   const [summaryOpen, setSummaryOpen] = useState(false);
   const [promoInput, setPromoInput] = useState('');
@@ -106,13 +111,12 @@ export default function CheckoutPopup() {
   if (!open) return null;
 
   // ── Totals ────────────────────────────────────────────────────────────
-  // Prices are MRP inclusive of GST and shipping — nothing is added on top.
-  const shipMethod = 'standard' as const;
-  const shippingFee = 0;
-  const tax = 0;
+  const shippingFee = shipMethod === 'express' ? EXPRESS_FEE : 0;
   const appliedCoupon = promoCode ? coupons.find((c) => c.code === promoCode) : undefined;
   const discount = appliedCoupon ? calcCouponDiscount(appliedCoupon, cartSubtotal) : 0;
-  const total = Math.max(cartSubtotal - discount, 0);
+  const taxable = Math.max(cartSubtotal - discount, 0) + shippingFee;
+  const tax = Math.round(taxable * GST_RATE);
+  const total = taxable + tax;
   const mrpTotal = cartSubtotal;
 
   const applyPromo = (raw?: string) => {
@@ -415,7 +419,11 @@ export default function CheckoutPopup() {
                 {discount > 0 && (
                   <SummaryRow label={`Discount (${promoCode})`} value={`− ${formatINR(discount)}`} accent />
                 )}
-                <SummaryRow label="Shipping" value="Free" />
+                <SummaryRow
+                  label="Shipping"
+                  value={shippingFee === 0 ? 'Free' : formatINR(shippingFee)}
+                />
+                <SummaryRow label="GST (5%)" value={formatINR(tax)} muted />
                 <div className="h-px bg-ink/10 my-2" />
                 <SummaryRow label="To pay" value={formatINR(total)} strong />
               </div>
@@ -460,8 +468,31 @@ export default function CheckoutPopup() {
                       <span className="text-ink/55"><TruckIcon /></span>
                       <span className="text-xs font-semibold text-ink">Shipping</span>
                     </div>
-                    <span className="text-[11px] font-bold tracking-wider uppercase bg-peacock text-ivory px-2 py-0.5">
-                      Free
+                    {shipMethod === 'express' ? (
+                      <span className="text-xs font-bold text-ink tabular-nums">
+                        {formatINR(EXPRESS_FEE)}
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-bold tracking-wider uppercase bg-peacock text-ivory px-2 py-0.5">
+                        Free
+                      </span>
+                    )}
+                  </div>
+                  {/* Inline express upsell */}
+                  <div className="border-t border-ink/10 px-4 py-2 flex items-center justify-between">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={shipMethod === 'express'}
+                        onChange={(e) => setShipMethod(e.target.checked ? 'express' : 'standard')}
+                        className="accent-ink"
+                      />
+                      <span className="text-xs text-ink/75">
+                        Upgrade to <span className="font-semibold text-ink">Express delivery</span> (2–3 days)
+                      </span>
+                    </label>
+                    <span className="text-[11px] font-semibold text-ink/65 tabular-nums">
+                      +{formatINR(EXPRESS_FEE)}
                     </span>
                   </div>
                 </div>

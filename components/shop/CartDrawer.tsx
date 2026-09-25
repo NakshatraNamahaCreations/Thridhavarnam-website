@@ -187,11 +187,11 @@ export default function CartDrawer() {
             <Row label="Subtotal" value={formatINR(cartSubtotal)} />
             <Row
               label="Shipping"
-              value="FREE"
+              value={cartSubtotal >= 25_000 ? 'FREE' : 'At checkout'}
               muted
             />
             <div className="h-px bg-ink/10 my-2" />
-            <Row label="Total" value={formatINR(cartSubtotal)} strong />
+            <Row label="Estimated total" value={formatINR(cartSubtotal)} strong />
 
             <button
               type="button"

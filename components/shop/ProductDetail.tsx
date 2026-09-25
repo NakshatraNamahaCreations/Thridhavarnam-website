@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useState } from 'react';
 import { SAREES, BADGE_LABEL, getColorways } from '@/lib/sarees';
 import { getColorwayGallery } from '@/lib/product-images';
 import { useRecentlyViewed } from '@/lib/recently-viewed';
@@ -39,8 +40,12 @@ export default function ProductDetail({ saree }: { saree: Saree }) {
   const viewers = 30 + (seed % 80);
   const deliveryDate = computeDeliveryDate(5 + (seed % 5));
 
+  // Color state is owned HERE (not in ProductInfo) so the gallery on the
+  // left can react to colour changes — picking a swatch swaps the
+  // thumbnails to images of sarees in that colour.
   const colorways = getColorways(saree);
-  const galleryImages = getColorwayGallery(saree, colorways[0]?.id ?? '');
+  const [colorId, setColorId] = useState(colorways[0]?.id ?? '');
+  const galleryImages = getColorwayGallery(saree, colorId);
 
   return (
     <div className="bg-white min-h-screen text-gray-900">
@@ -70,6 +75,7 @@ export default function ProductDetail({ saree }: { saree: Saree }) {
       <div className="max-w-[1720px] mx-auto px-4 lg:px-8 py-6 lg:py-8">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
           <ProductGallery
+            key={colorId}
             images={galleryImages}
             alt={saree.name}
           />
@@ -79,6 +85,8 @@ export default function ProductDetail({ saree }: { saree: Saree }) {
             badge={badgeLabel}
             viewers={viewers}
             deliveryDate={deliveryDate}
+            colorId={colorId}
+            onColorChange={setColorId}
           />
         </div>
       </div>

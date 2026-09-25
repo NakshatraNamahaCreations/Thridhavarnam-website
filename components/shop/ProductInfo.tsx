@@ -1,7 +1,7 @@
 'use client';
 
-import { useState } from 'react';
-import { type SAREES, formatINR } from '@/lib/sarees';
+import { useMemo, useState } from 'react';
+import { type SAREES, formatINR, getColorways } from '@/lib/sarees';
 import { useShop } from '@/lib/shop-store';
 import { useCheckoutModal } from '@/lib/checkout-modal';
 import { useLoginModal } from '@/lib/login-modal';
@@ -9,18 +9,24 @@ import { useAuth } from '@/lib/auth';
 
 type Saree = (typeof SAREES)[number];
 
+const PRE_DRAPE_PRICE = 1750;
+
 export default function ProductInfo({
   saree,
   mrp,
   badge,
   viewers,
   deliveryDate,
+  colorId,
+  onColorChange,
 }: {
   saree: Saree;
   mrp?: number;
   badge?: string;
   viewers: number;
   deliveryDate: string;
+  colorId: string;
+  onColorChange: (id: string) => void;
 }) {
   const { addToCart, inCart, toggleWishlist, inWishlist, hydrated } = useShop();
   const { openCheckout } = useCheckoutModal();
@@ -44,10 +50,14 @@ export default function ProductInfo({
     }
     proceed();
   };
+  const colorways = useMemo(() => getColorways(saree), [saree]);
+  const selectedColor = colorways.find((c) => c.id === colorId) ?? colorways[0];
+  const [preDrape, setPreDrape] = useState(false);
+  const [showPreDrapeInfo, setShowPreDrapeInfo] = useState(false);
   const [shareNote, setShareNote] = useState<string | null>(null);
 
   const discount = mrp ? Math.round(((mrp - saree.price) / mrp) * 100) : 0;
-  const total = saree.price;
+  const total = saree.price + (preDrape ? PRE_DRAPE_PRICE : 0);
 
   const onShare = async () => {
     if (typeof window === 'undefined') return;
@@ -134,6 +144,83 @@ export default function ProductInfo({
         )}
       </div>
       <div className="text-xs text-gray-500 mb-5">Inclusive of all taxes</div>
+
+      {/* Color */}
+      {colorways.length > 0 && selectedColor && (
+        <div className="mb-5">
+          <div className="text-sm font-semibold text-gray-900 mb-2">
+            Color : <span className="font-normal text-gray-700">{selectedColor.name}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {colorways.map((c) => {
+              const active = c.id === selectedColor.id;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  onClick={() => onColorChange(c.id)}
+                  aria-label={`Choose colour ${c.name}`}
+                  aria-pressed={active}
+                  className={`w-9 h-9 rounded-full border-2 transition-all relative ${
+                    active
+                      ? 'border-gray-900 p-0.5'
+                      : 'border-transparent hover:border-gray-400 p-0.5'
+                  }`}
+                >
+                  <span
+                    className="block w-full h-full rounded-full border border-gray-200"
+                    style={{ backgroundColor: c.hex }}
+                  />
+                  {active && (
+                    <span className="absolute inset-0 rounded-full ring-1 ring-inset ring-white/40 pointer-events-none" />
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Add-on: pre-drape */}
+      <div className="border-t border-gray-200">
+        <label className="flex items-start gap-3 py-3 cursor-pointer">
+          <input
+            type="checkbox"
+            checked={preDrape}
+            onChange={() => setPreDrape(!preDrape)}
+            className="mt-0.5 w-4 h-4 accent-gray-900"
+          />
+          <div className="flex-1 text-sm">
+            <span className="font-medium text-gray-900">
+              Pre-Drape this Saree + {formatINR(PRE_DRAPE_PRICE)}
+            </span>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                setShowPreDrapeInfo((v) => !v);
+              }}
+              aria-expanded={showPreDrapeInfo}
+              className="ml-2 text-xs text-[#75001F] hover:underline"
+            >
+              {showPreDrapeInfo ? 'Hide' : 'Learn More'}
+            </button>
+          </div>
+        </label>
+        {showPreDrapeInfo && (
+          <div className="mb-3 ml-7 mr-1 p-3 bg-gray-50 border-l-2 border-[#75001F] text-xs text-gray-700 leading-relaxed space-y-1.5">
+            <p>
+              Our atelier pre-pleats and stitches your saree into a ready-to-wear drape — you step in and zip up, no pinning, no folding.
+            </p>
+            <p>
+              Add <strong>+{formatINR(PRE_DRAPE_PRICE)}</strong> at checkout and provide your measurements once the order is placed. Adds 5–7 working days to dispatch.
+            </p>
+            <p className="text-gray-500">
+              Pre-draped sarees are custom-fit and therefore non-returnable.
+            </p>
+          </div>
+        )}
+      </div>
 
       {/* CTAs */}
       <div className="mt-5 grid gap-3">

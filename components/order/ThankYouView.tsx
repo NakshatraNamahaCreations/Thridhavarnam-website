@@ -203,9 +203,7 @@ export default function ThankYouView() {
                     label="Shipping"
                     value={order.shippingFee === 0 ? 'Free' : formatINR(order.shippingFee)}
                   />
-                  {order.tax > 0 && (
-                    <SummaryRow label="GST (5%)" value={formatINR(order.tax)} muted />
-                  )}
+                  <SummaryRow label="GST (5%)" value={formatINR(order.tax)} muted />
                   <div className="h-px bg-ink/10 my-2" />
                   <SummaryRow label="Total paid" value={formatINR(order.total)} strong />
                   <div className="mt-2 text-[11px] text-ink/55">
