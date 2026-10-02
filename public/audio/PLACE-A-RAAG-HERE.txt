@@ -1,0 +1,15 @@
+Drop a traditional Indian instrumental track here as `raag-ambient.mp3` and
+the splash screen's "Enter with Sound" button will play it on loop.
+
+Suggested tracks (royalty-free / Creative Commons):
+
+  - Sitar ambient / drone on freemusicarchive.org
+  - "Raag" search on pixabay.com/music — many CC0 sitar pieces
+  - YouTube Audio Library — search "Indian", "sitar", "tabla"
+
+Naming:   raag-ambient.mp3
+Length:   ~3 to 6 minutes (it loops anyway)
+Volume:   The player fades it in at 0.35 — mix accordingly
+
+If the file is missing, the site degrades gracefully — the gate still
+appears, but the toggle silently does nothing.
