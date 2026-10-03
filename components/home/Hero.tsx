@@ -177,6 +177,7 @@ export default function Hero() {
                 alt={saree.name}
                 fill
                 priority={i === 0}
+                loading={i === 0 ? undefined : 'eager'}
                 sizes="(max-width: 768px) 100vw, 60vw"
                 className="object-cover"
                 style={{
@@ -390,6 +391,7 @@ function BannerHero({ banners }: { banners: BackendBanner[] }) {
               alt={b.title ?? ''}
               fill
               priority={i === 0}
+              loading={i === 0 ? undefined : 'eager'}
               sizes="100vw"
               className={`object-cover transition-opacity duration-700 ease-out ${loaded.has(b.id) ? 'opacity-100' : 'opacity-0'}`}
               onLoad={() => setLoaded((prev) => new Set(prev).add(b.id))}

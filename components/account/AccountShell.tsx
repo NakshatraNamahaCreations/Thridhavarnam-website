@@ -2,10 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import clsx from 'clsx';
 import { useAuth } from '@/lib/auth';
 import { useLoginModal } from '@/lib/login-modal';
+import SignOutConfirmDialog from '@/components/auth/SignOutConfirmDialog';
 
 // Shared chrome for the /account/* section — sidebar (user card + nav)
 // on the left, content slot on the right. The same layout component is
@@ -33,6 +34,7 @@ export default function AccountShell({
   const router = useRouter();
   const { user, hydrated, signOut } = useAuth();
   const { openLogin } = useLoginModal();
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -83,7 +85,7 @@ export default function AccountShell({
               })}
               <button
                 type="button"
-                onClick={signOut}
+                onClick={() => setConfirmSignOut(true)}
                 className="w-full flex items-center gap-3 px-4 py-3 text-sm text-ink/80 hover:bg-ink/5 hover:text-ink transition-colors text-left"
               >
                 <span className="text-ink/55 shrink-0">
@@ -103,6 +105,15 @@ export default function AccountShell({
           </main>
         </div>
       </div>
+
+      <SignOutConfirmDialog
+        open={confirmSignOut}
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          signOut();
+        }}
+      />
     </div>
   );
 }

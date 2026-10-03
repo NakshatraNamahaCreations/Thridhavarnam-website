@@ -52,16 +52,16 @@ export default function SiteShell({ children }: { children: React.ReactNode }) {
   const immersive = pathname === '/' || pathname === '/journey';
   const showFooter = !immersive;
   // Nav stacks promo strip (~34px) + main row (logo + py-2) + weaves sub-row
-  // (~32px, md+ only — hidden on mobile so the hamburger owns nav there).
-  //   base:  34 + 64           ≈  98 → pt-[108px]
-  //   sm:    34 + 72           ≈ 106 → pt-[116px]
-  //   md:    34 + 80 + 32      ≈ 146 → pt-[160px]
-  //   lg:    34 + 96 + 32      ≈ 162 → pt-[176px]
+  // (~32px, md+ only) + mobile search row (~60px, <lg only).
+  //   base:  34 + 64 + 60      ≈ 158 → pt-[168px]  (promo + main + search)
+  //   sm:    34 + 72 + 60      ≈ 166 → pt-[176px]
+  //   md:    34 + 80 + 32 + 60 ≈ 206 → pt-[216px]  (adds weave sub-row)
+  //   lg:    34 + 96 + 32      ≈ 162 → pt-[176px]  (no search row)
   // `bg-ivory no-pattern` paints the spacer strip between the fixed nav
   // and a page's first section as plain cream.
   const mainClass = immersive
     ? ''
-    : 'pt-[108px] sm:pt-[116px] md:pt-[160px] lg:pt-[176px] bg-ivory no-pattern';
+    : 'pt-[168px] sm:pt-[176px] md:pt-[216px] lg:pt-[176px] bg-ivory no-pattern';
 
   return (
     <LoginModalProvider>

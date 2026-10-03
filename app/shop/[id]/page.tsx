@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import { cache } from 'react';
 import { notFound } from 'next/navigation';
-import { productsApi, backendToSaree, type BackendProduct } from '@/lib/api';
+import { productsApi, categoriesApi, backendToSaree, type BackendProduct } from '@/lib/api';
 import { slugify, type Saree } from '@/lib/sarees';
 import ProductDetail from '@/components/shop/ProductDetail';
 
@@ -47,8 +47,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   };
 }
 
-function computeSimilar(all: BackendProduct[], current: Saree): Saree[] {
-  const others = all.map((p) => backendToSaree(p)).filter((s) => s.id !== current.id);
+function computeSimilar(all: BackendProduct[], current: Saree, categoryMap: Record<string, string>): Saree[] {
+  const others = all.map((p) => backendToSaree(p, categoryMap)).filter((s) => s.id !== current.id);
   const sameWeave = current.weave ? others.filter((s) => s.weave === current.weave) : [];
   if (sameWeave.length > 0) return sameWeave;
   return others.filter((s) => Array.isArray(s.flags) && s.flags.includes('bestseller'));
@@ -56,17 +56,27 @@ function computeSimilar(all: BackendProduct[], current: Saree): Saree[] {
 
 export default async function ProductPage({ params }: Props) {
   const { id } = await params;
-  const [product, allProducts] = await Promise.all([
+  // Categories are fetched alongside the product so backendToSaree can
+  // resolve a product's admin-picked category id (e.g. "fancy-sarees")
+  // to the display name ("Fancy Sarees"). Without the map, saree.weave
+  // falls through to the raw id and the ProductDetail breadcrumb would
+  // link to /shop?weave=<slug>, which no product on the catalogue matches.
+  const [product, allProducts, categories] = await Promise.all([
     resolveProduct(id),
     productsApi.list().catch(() => [] as BackendProduct[]),
+    categoriesApi.list().catch(() => []),
   ]);
   if (!product) notFound();
-  const saree = backendToSaree(product);
+  const categoryMap: Record<string, string> = {};
+  for (const c of categories) {
+    if (c.id && c.name) categoryMap[c.id] = c.name;
+  }
+  const saree = backendToSaree(product, categoryMap);
   return (
     <ProductDetail
       saree={saree}
       backendProduct={product}
-      similar={computeSimilar(allProducts, saree)}
+      similar={computeSimilar(allProducts, saree, categoryMap)}
     />
   );
 }

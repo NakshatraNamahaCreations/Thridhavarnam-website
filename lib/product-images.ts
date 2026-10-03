@@ -127,7 +127,15 @@ const WEAVE_SWATCH: Record<Weave, string> = {
  * primary frame. Falls back to the catalog placeholder.
  */
 export function getProductHero(saree: Saree): string {
-  return PRODUCT_IMAGES[saree.id]?.hero ?? saree.image;
+  // Admin products often only upload to the gallery (`saree.images`) and
+  // leave the single-image field empty — fall back to the first gallery
+  // entry so the card isn't a blank box instead of a photograph.
+  return (
+    PRODUCT_IMAGES[saree.id]?.hero ||
+    saree.image ||
+    saree.images?.[0]?.url ||
+    ''
+  );
 }
 
 /**

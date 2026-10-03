@@ -9,7 +9,7 @@
 // the public GET routes we added locally, so it returns 401.
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  // 'http://localhost:5005/api';
+  // 'http://localhost:5000/api';
   // 'https://sareeebackend.onrender.com/api';
   'https://api.thridhavarnam.com/api';
 
@@ -171,28 +171,54 @@ async function doFetch<T>(
     ? { revalidate: init.revalidate ?? 60 }
     : undefined;
 
-  const res = await fetch(`${BASE}${path}`, {
-    ...(fetchCache ? { cache: fetchCache } : {}),
-    ...(nextOpts ? { next: nextOpts } : {}),
-    method: init.method ?? 'GET',
-    headers,
-    body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
-  });
+  // Reads retry on transient upstream failures (502/503/504 or a dropped
+  // connection) — covers the brief window during a PM2 reload when nginx
+  // has no backend to proxy to. Writes stay single-attempt so a
+  // half-applied POST isn't repeated.
+  const maxAttempts = isWrite ? 1 : 3;
+  const backoffMs = [0, 250, 750];
+  let lastErr: unknown;
 
-  const text = await res.text();
-  let data: unknown = null;
-  if (text) {
-    try { data = JSON.parse(text); } catch { data = text; }
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (attempt > 0) await new Promise((r) => setTimeout(r, backoffMs[attempt]));
+
+    let res: Response;
+    try {
+      res = await fetch(`${BASE}${path}`, {
+        ...(fetchCache ? { cache: fetchCache } : {}),
+        ...(nextOpts ? { next: nextOpts } : {}),
+        method: init.method ?? 'GET',
+        headers,
+        body: init.body !== undefined ? JSON.stringify(init.body) : undefined,
+      });
+    } catch (err) {
+      lastErr = err;
+      if (attempt < maxAttempts - 1) continue;
+      throw err;
+    }
+
+    if ((res.status === 502 || res.status === 503 || res.status === 504) && attempt < maxAttempts - 1) {
+      lastErr = new Error(`API ${res.status} for ${path}`);
+      continue;
+    }
+
+    const text = await res.text();
+    let data: unknown = null;
+    if (text) {
+      try { data = JSON.parse(text); } catch { data = text; }
+    }
+
+    if (!res.ok) {
+      const msg =
+        (data && typeof data === 'object' && 'message' in data && typeof (data as { message?: unknown }).message === 'string')
+          ? (data as { message: string }).message
+          : `API ${res.status} for ${path}`;
+      throw new Error(msg);
+    }
+    return data as T;
   }
 
-  if (!res.ok) {
-    const msg =
-      (data && typeof data === 'object' && 'message' in data && typeof (data as { message?: unknown }).message === 'string')
-        ? (data as { message: string }).message
-        : `API ${res.status} for ${path}`;
-    throw new Error(msg);
-  }
-  return data as T;
+  throw lastErr instanceof Error ? lastErr : new Error(`API failed for ${path}`);
 }
 
 export type BackendUser = {

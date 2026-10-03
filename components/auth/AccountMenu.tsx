@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 import { useAuth } from '@/lib/auth';
 import { useLoginModal } from '@/lib/login-modal';
+import SignOutConfirmDialog from '@/components/auth/SignOutConfirmDialog';
 
 /**
  * AccountMenu — the user icon in the nav.
@@ -20,6 +21,7 @@ export default function AccountMenu() {
   const { user, hydrated, signOut } = useAuth();
   const { openLogin } = useLoginModal();
   const [open, setOpen] = useState(false);
+  const [confirmSignOut, setConfirmSignOut] = useState(false);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   // Close on outside click / Escape so the menu behaves like a real popover.
@@ -123,7 +125,7 @@ export default function AccountMenu() {
             role="menuitem"
             onClick={() => {
               setOpen(false);
-              signOut();
+              setConfirmSignOut(true);
             }}
             className="w-full px-4 py-2.5 text-sm text-ink hover:bg-ink/5 transition-colors text-left"
           >
@@ -131,6 +133,15 @@ export default function AccountMenu() {
           </button>
         </div>
       )}
+
+      <SignOutConfirmDialog
+        open={confirmSignOut}
+        onCancel={() => setConfirmSignOut(false)}
+        onConfirm={() => {
+          setConfirmSignOut(false);
+          signOut();
+        }}
+      />
     </div>
   );
 }

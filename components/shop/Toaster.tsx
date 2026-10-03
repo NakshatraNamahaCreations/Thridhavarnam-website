@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import Image from 'next/image';
 import { useShop } from '@/lib/shop-store';
+import { getProductHero } from '@/lib/product-images';
 
 export default function Toaster() {
   const { toasts, dismissToast, getProduct } = useShop();
@@ -31,7 +32,7 @@ export default function Toaster() {
             {product && (
               <div className="relative w-12 h-14 shrink-0 bg-bone rounded-sm overflow-hidden">
                 <Image
-                  src={product.image}
+                  src={getProductHero(product)}
                   alt=""
                   fill
                   sizes="48px"

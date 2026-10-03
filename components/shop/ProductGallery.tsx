@@ -2,6 +2,7 @@
 
 import Image from 'next/image';
 import { useState, useRef } from 'react';
+import { PRODUCT_BLUR_DATA_URL } from '@/lib/image-blur';
 
 /**
  * ProductGallery — Kalki-style PDP gallery.
@@ -10,6 +11,11 @@ import { useState, useRef } from 'react';
  * hover-to-zoom magnifier overlay. On hover, the cursor area is sampled and
  * the same image is shown at higher scale, anchored to the cursor position.
  */
+// Max thumbnails visible in the desktop rail before the list becomes a
+// vertical carousel. Chosen so a tall PDP (aspect-[4/5] main image at
+// ~800px) still shows every thumb without the rail overflowing the main.
+const THUMB_LIMIT = 7;
+
 export default function ProductGallery({
   images,
   alt,
@@ -21,8 +27,21 @@ export default function ProductGallery({
   const [zoom, setZoom] = useState(false);
   const [pos, setPos] = useState({ x: 50, y: 50 });
   const stageRef = useRef<HTMLDivElement | null>(null);
+  const thumbsRef = useRef<HTMLDivElement | null>(null);
 
   const main = images[active] ?? images[0];
+  const carousel = images.length > THUMB_LIMIT;
+
+  // Scroll the vertical thumbnail rail by ~3 thumbs per arrow click. Reads
+  // the first child's height so changes to thumb aspect ratio or gap stay
+  // in sync without hard-coding pixel values.
+  const scrollThumbs = (dir: 1 | -1) => {
+    const el = thumbsRef.current;
+    const first = el?.firstElementChild as HTMLElement | null;
+    if (!el || !first) return;
+    const step = (first.offsetHeight + 8) * 3; // gap-2 = 8px
+    el.scrollBy({ top: dir * step, behavior: 'smooth' });
+  };
 
   // Track cursor / finger position relative to the stage so the zoom
   // layer can anchor to it. Takes raw coords so it works for both mouse
@@ -42,27 +61,65 @@ export default function ProductGallery({
 
   return (
     <div className="flex gap-3 lg:gap-4">
-      {/* Vertical thumbnails — desktop */}
-      <div className="hidden md:flex flex-col gap-2 w-20 shrink-0">
-        {images.map((src, i) => (
+      {/* Vertical thumbnails — desktop. Becomes a carousel with up/down
+          arrows once we exceed THUMB_LIMIT so the rail never overflows
+          the main image area. */}
+      <div className="hidden md:flex flex-col items-stretch gap-1.5 w-20 shrink-0">
+        {carousel && (
           <button
-            key={src + i}
             type="button"
-            onClick={() => setActive(i)}
-            aria-label={`View image ${i + 1}`}
-            className={`relative aspect-[4/5] overflow-hidden border-2 transition-colors ${
-              i === active ? 'border-gray-900' : 'border-transparent hover:border-gray-400'
-            }`}
+            onClick={() => scrollThumbs(-1)}
+            aria-label="Scroll thumbnails up"
+            className="h-7 flex items-center justify-center border border-gray-300 text-gray-700 hover:border-gray-900 hover:text-gray-900 hover:bg-gray-50 transition-colors"
           >
-            <Image
-              src={src}
-              alt=""
-              fill
-              sizes="80px"
-              className="object-cover"
-            />
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="m6 15 6-6 6 6" />
+            </svg>
           </button>
-        ))}
+        )}
+        {/* When >7 thumbs, lock the rail to exactly 7 × 100px + 6 × 8px gap
+            = 748px. shrink-0 on each thumb stops flexbox from squeezing
+            them to make room when the content overflows the fixed height
+            — without it, every thumb would compress slightly and the 8th
+            would peek through the bottom edge. */}
+        <div
+          ref={thumbsRef}
+          className={`flex flex-col gap-2 ${carousel ? 'h-[748px] overflow-y-auto no-scrollbar scroll-smooth' : ''}`}
+        >
+          {images.map((src, i) => (
+            <button
+              key={src + i}
+              type="button"
+              onClick={() => setActive(i)}
+              aria-label={`View image ${i + 1}`}
+              className={`relative aspect-[4/5] overflow-hidden border-2 shrink-0 transition-colors ${
+                i === active ? 'border-gray-900' : 'border-transparent hover:border-gray-400'
+              }`}
+            >
+              <Image
+                src={src}
+                alt=""
+                fill
+                sizes="80px"
+                placeholder="blur"
+                blurDataURL={PRODUCT_BLUR_DATA_URL}
+                className="object-cover"
+              />
+            </button>
+          ))}
+        </div>
+        {carousel && (
+          <button
+            type="button"
+            onClick={() => scrollThumbs(1)}
+            aria-label="Scroll thumbnails down"
+            className="h-7 flex items-center justify-center border border-gray-300 text-gray-700 hover:border-gray-900 hover:text-gray-900 hover:bg-gray-50 transition-colors"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <path d="m6 9 6 6 6-6" />
+            </svg>
+          </button>
+        )}
       </div>
 
       {/* Main image */}
@@ -103,6 +160,8 @@ export default function ProductGallery({
             priority
             sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 600px"
             quality={95}
+            placeholder="blur"
+            blurDataURL={PRODUCT_BLUR_DATA_URL}
             className="object-cover"
             style={{ opacity: zoom ? 0 : 1, transition: 'opacity 150ms' }}
           />

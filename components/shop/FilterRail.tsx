@@ -12,6 +12,14 @@ const FALLBACK_WEAVES: Weave[] = [
   'Pochampally', 'Gadwal', 'Patola', 'Fancy Sarees', 'Mixed Pattu Sarees',
 ];
 
+// Admin-stored category names sometimes come through as slugs
+// ("fancy-sarees") or snake_case; title-case them for display without
+// touching the raw value we use for filter matching.
+function humanizeWeaveLabel(raw: string): string {
+  const parts = raw.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+  return parts.map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w)).join(' ');
+}
+
 const PRICE_BRACKETS: { id: string; label: string; min: number; max: number }[] = [
   { id: 'under-5k', label: 'Under ₹5,000', min: 0, max: 5000 },
   { id: '5-15k', label: '₹5,000 – ₹15,000', min: 5000, max: 15000 },
@@ -28,10 +36,11 @@ export type FilterState = {
   colors: string[]; // STANDARD_COLORWAYS ids
   occasions: string[]; // backend occasion ids
   flags: string[]; // 'bestseller' | 'new_in'
+  q: string; // free-text search from the navbar
 };
 
 export const EMPTY_FILTERS: FilterState = {
-  tiers: [], weaves: [], bracket: null, sale: false, colors: [], occasions: [], flags: [],
+  tiers: [], weaves: [], bracket: null, sale: false, colors: [], occasions: [], flags: [], q: '',
 };
 
 export const CATEGORY_FLAGS: { key: string; label: string }[] = [
@@ -192,7 +201,7 @@ export default function FilterRail({
         {weaveOptions.map((w) => (
           <Check
             key={w}
-            label={w}
+            label={humanizeWeaveLabel(w)}
             checked={filters.weaves.includes(w)}
             onChange={() => toggleWeave(w)}
             count={counts.weave[w] ?? 0}

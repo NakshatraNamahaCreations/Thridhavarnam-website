@@ -70,9 +70,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     >
       <head>
         {/* Pre-establish the TCP+TLS connection to Cloudinary so image
-            downloads start immediately without a DNS/handshake round-trip. */}
+            downloads start immediately without a DNS/handshake round-trip.
+            No crossOrigin — <img> fetches images without CORS, and a
+            crossorigin="anonymous" preconnect only matches CORS fetches,
+            so the earlier version wasn't actually being reused. */}
         <link rel="dns-prefetch" href="https://res.cloudinary.com" />
-        <link rel="preconnect" href="https://res.cloudinary.com" crossOrigin="anonymous" />
+        <link rel="preconnect" href="https://res.cloudinary.com" />
       </head>
       <body className="bg-ivory text-ink">
         <ShopProvider>

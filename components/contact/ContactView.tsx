@@ -7,6 +7,11 @@ import { enquiriesApi } from '@/lib/api';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MOBILE_RE = /^[6-9]\d{9}$/;
+// Letters + spaces only. Accommodates two-word first names ("Mary Ann")
+// without allowing digits or symbols. Also used as an onChange filter so
+// disallowed characters never land in state.
+const NAME_RE = /^[A-Za-z][A-Za-z ]*$/;
+const stripNonLetters = (v: string) => v.replace(/[^A-Za-z ]/g, '');
 
 type Subject =
   | 'general'
@@ -40,8 +45,8 @@ export default function ContactView() {
   const markTouched = (field: string) =>
     setTouched((t) => (t[field] ? t : { ...t, [field]: true }));
 
-  const firstNameValid = firstName.trim().length >= 2;
-  const lastNameValid = lastName.trim().length >= 1;
+  const firstNameValid = firstName.trim().length >= 2 && NAME_RE.test(firstName.trim());
+  const lastNameValid = lastName.trim().length >= 1 && NAME_RE.test(lastName.trim());
   const emailValid = EMAIL_RE.test(email.trim());
   const mobileValid = MOBILE_RE.test(mobile.trim());
   const messageValid = message.trim().length >= 10;
@@ -49,8 +54,8 @@ export default function ContactView() {
   const err = (field: string, hasValue: boolean, valid: boolean, msg: string) =>
     touched[field] && hasValue && !valid ? msg : '';
 
-  const firstNameError = err('firstName', firstName.trim().length > 0, firstNameValid, 'Enter your first name (min 2 characters).');
-  const lastNameError = err('lastName', lastName.trim().length > 0, lastNameValid, 'Enter your last name.');
+  const firstNameError = err('firstName', firstName.trim().length > 0, firstNameValid, 'Enter your first name (letters only, min 2 characters).');
+  const lastNameError = err('lastName', lastName.trim().length > 0, lastNameValid, 'Enter your last name (letters only).');
   const emailError = err('email', email.trim().length > 0, emailValid, 'Enter a valid email address.');
   const mobileError = err('mobile', mobile.length > 0, mobileValid, 'Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.');
   const messageError = err('message', message.trim().length > 0, messageValid, 'Tell us a bit more — at least 10 characters.');
@@ -143,7 +148,7 @@ export default function ContactView() {
                         autoComplete="given-name"
                         placeholder="First name"
                         value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
+                        onChange={(e) => setFirstName(stripNonLetters(e.target.value))}
                         onBlur={() => markTouched('firstName')}
                         aria-invalid={!!firstNameError}
                         className={fieldClass(!!firstNameError)}
@@ -159,7 +164,7 @@ export default function ContactView() {
                         autoComplete="family-name"
                         placeholder="Last name"
                         value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
+                        onChange={(e) => setLastName(stripNonLetters(e.target.value))}
                         onBlur={() => markTouched('lastName')}
                         aria-invalid={!!lastNameError}
                         className={fieldClass(!!lastNameError)}

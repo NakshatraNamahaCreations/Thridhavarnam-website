@@ -4,6 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { SAREES, BADGE_LABEL, type BadgeKind, formatINR, productSlug } from '@/lib/sarees';
 import { getProductHero } from '@/lib/product-images';
+import { PRODUCT_BLUR_DATA_URL } from '@/lib/image-blur';
 import WishlistButton from '@/components/shop/WishlistButton';
 import AddToCartButton from '@/components/shop/AddToCartButton';
 
@@ -40,6 +41,8 @@ export default function ProductCard({
           fill
           priority={priority}
           sizes="(max-width: 768px) 50vw, (max-width: 1280px) 28vw, 22vw"
+          placeholder="blur"
+          blurDataURL={PRODUCT_BLUR_DATA_URL}
           className={`object-cover transition-transform duration-500 group-hover:scale-105 ${outOfStock ? 'opacity-60 grayscale' : ''}`}
         />
 

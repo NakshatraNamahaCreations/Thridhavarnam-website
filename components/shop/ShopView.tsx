@@ -48,6 +48,20 @@ const SORT_LABELS: Record<Sort, string> = {
 // the admin ticked the "Sale" flag on it.
 const isOnSale = (s: Saree) => Array.isArray(s.flags) && s.flags.includes('sale');
 
+// Convert a stored category/weave value into something readable for the
+// UI. Admins sometimes save slugs like "fancy-sarees" or "soft_silk" as
+// the Category name; show them as "Fancy Sarees" / "Soft Silk" without
+// changing the raw value we use for URL / filter matching.
+function humanizeWeave(raw: string): string {
+  const parts = raw.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+  return parts.map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w)).join(' ');
+}
+// Avoid "Fancy Sarees Sarees" when the weave name already includes "saree".
+function weaveHeading(raw: string): string {
+  const nice = humanizeWeave(raw);
+  return /sarees?$/i.test(nice) ? nice : `${nice} Sarees`;
+}
+
 function parseFiltersFromSearch(params: URLSearchParams): FilterState {
   const tierCsv = params.get('tier');
   const weaveCsv = params.get('weave');
@@ -56,6 +70,7 @@ function parseFiltersFromSearch(params: URLSearchParams): FilterState {
   const colorCsv = params.get('color');
   const occasionCsv = params.get('occasion');
   const flagCsv = params.get('flag');
+  const q = (params.get('q') ?? '').trim();
 
   const tiers = tierCsv
     ? (tierCsv.split(',').filter((t) => t in TIERS) as Tier[])
@@ -71,7 +86,7 @@ function parseFiltersFromSearch(params: URLSearchParams): FilterState {
   const validFlags = new Set(CATEGORY_FLAGS.map((f) => f.key));
   const flags = flagCsv ? flagCsv.split(',').filter((f) => validFlags.has(f)) : [];
 
-  return { tiers, weaves, bracket, sale, colors, occasions, flags };
+  return { tiers, weaves, bracket, sale, colors, occasions, flags, q };
 }
 
 function writeFiltersToSearch(
@@ -93,6 +108,8 @@ function writeFiltersToSearch(
   else next.delete('occasion');
   if (filters.flags.length) next.set('flag', filters.flags.join(','));
   else next.delete('flag');
+  if (filters.q) next.set('q', filters.q);
+  else next.delete('q');
   return next;
 }
 
@@ -242,6 +259,16 @@ export default function ShopView() {
     if (filters.flags.length) {
       items = items.filter((s) => Array.isArray(s.flags) && filters.flags.some((f) => s.flags!.includes(f)));
     }
+    if (filters.q) {
+      // Free-text search from the navbar. Match every space-separated
+      // token against the saree's name, weave, occasion and tier so
+      // multi-word queries ("red kanjivaram") narrow instead of OR-ing.
+      const tokens = filters.q.toLowerCase().split(/\s+/).filter(Boolean);
+      items = items.filter((s) => {
+        const hay = `${s.name} ${s.weave ?? ''} ${s.occasion ?? ''} ${s.tier ?? ''}`.toLowerCase();
+        return tokens.every((t) => hay.includes(t));
+      });
+    }
 
     switch (sort) {
       case 'price-asc':
@@ -289,13 +316,14 @@ export default function ShopView() {
   const heading = useMemo(() => {
     if (mode === 'wishlist') return { title: 'Wishlist', sub: '' };
     if (mode === 'bag') return { title: 'Shopping Bag', sub: '' };
+    if (filters.q) return { title: `Results for “${filters.q}”`, sub: '' };
     if (filters.sale) return { title: 'Sarees on Sale', sub: '' };
     if (filters.tiers.length === 1) {
       const t = TIERS[filters.tiers[0]];
       return { title: `${t.sub} Sarees`, sub: '' };
     }
     if (filters.weaves.length === 1) {
-      return { title: `${filters.weaves[0]} Sarees`, sub: '' };
+      return { title: weaveHeading(filters.weaves[0]), sub: '' };
     }
     return { title: 'All Sarees', sub: '' };
   }, [filters, mode]);
@@ -310,7 +338,8 @@ export default function ShopView() {
     !filters.sale &&
     !filters.colors.length &&
     !filters.occasions.length &&
-    !filters.flags.length;
+    !filters.flags.length &&
+    !filters.q;
 
   // Filter-active flag — true when at least one filter chip is on. Drives
   // the "Filtered by:" chip row inside the header.
@@ -321,7 +350,8 @@ export default function ShopView() {
     filters.sale ||
     filters.colors.length > 0 ||
     filters.occasions.length > 0 ||
-    filters.flags.length > 0;
+    filters.flags.length > 0 ||
+    !!filters.q;
 
   // ──────────────────────────────────────────────────────────────────────
   if (mode === 'wishlist') return <WishlistPanel heading={heading} />;
@@ -365,6 +395,12 @@ export default function ShopView() {
               <span className="text-xs font-bold text-gray-500 uppercase tracking-wide mr-1">
                 Filtered by:
               </span>
+              {filters.q && (
+                <FilterChip
+                  label={`Search: “${filters.q}”`}
+                  onRemove={() => onFilterChange({ ...filters, q: '' })}
+                />
+              )}
               {filters.tiers.map((t) => (
                 <FilterChip
                   key={`tier-${t}`}
@@ -375,7 +411,7 @@ export default function ShopView() {
               {filters.weaves.map((w) => (
                 <FilterChip
                   key={`weave-${w}`}
-                  label={w}
+                  label={humanizeWeave(w)}
                   onRemove={() => onFilterChange({ ...filters, weaves: filters.weaves.filter((x) => x !== w) })}
                 />
               ))}
@@ -482,7 +518,8 @@ export default function ShopView() {
                   filters.occasions.length === 0 &&
                   filters.flags.length === 0 &&
                   !filters.bracket &&
-                  !filters.sale;
+                  !filters.sale &&
+                  !filters.q;
                 if (isSoloWeave) {
                   const weaveName = filters.weaves[0];
                   return (

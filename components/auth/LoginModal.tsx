@@ -10,6 +10,11 @@ import { useScrollLock } from '@/lib/scroll-lock';
 type Mode = 'signin' | 'signup' | 'forgot' | 'success';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Letters + spaces only. Accommodates two-word first names ("Mary Ann")
+// without allowing digits or symbols. Also used as an onChange filter so
+// disallowed characters never land in state.
+const NAME_RE = /^[A-Za-z][A-Za-z ]*$/;
+const stripNonLetters = (v: string) => v.replace(/[^A-Za-z ]/g, '');
 
 export default function LoginModal() {
   const { open, closeLogin, loginSucceeded } = useLoginModal();
@@ -78,8 +83,8 @@ export default function LoginModal() {
 
   const emailValid = EMAIL_RE.test(email.trim());
   const passwordValid = password.length >= 8;
-  const firstNameValid = firstName.trim().length >= 2;
-  const lastNameValid = lastName.trim().length >= 1;
+  const firstNameValid = firstName.trim().length >= 2 && NAME_RE.test(firstName.trim());
+  const lastNameValid = lastName.trim().length >= 1 && NAME_RE.test(lastName.trim());
   const mobileValid = /^[6-9]\d{9}$/.test(mobile.trim());
   const dobValid = (() => {
     if (!dob) return false;
@@ -101,13 +106,13 @@ export default function LoginModal() {
     'firstName',
     firstName.trim().length > 0,
     firstNameValid,
-    'Enter your first name (min 2 characters).',
+    'Enter your first name (letters only, min 2 characters).',
   );
   const lastNameError = err(
     'lastName',
     lastName.trim().length > 0,
     lastNameValid,
-    'Enter your last name.',
+    'Enter your last name (letters only).',
   );
   const signupEmailError = err(
     'email',
@@ -397,7 +402,7 @@ export default function LoginModal() {
                         autoComplete="given-name"
                         placeholder="First name"
                         value={firstName}
-                        onChange={(e) => setFirstName(e.target.value)}
+                        onChange={(e) => setFirstName(stripNonLetters(e.target.value))}
                         onBlur={() => markTouched('firstName')}
                         aria-invalid={!!firstNameError}
                         className={inputClass(!!firstNameError)}
@@ -415,7 +420,7 @@ export default function LoginModal() {
                         autoComplete="family-name"
                         placeholder="Last name"
                         value={lastName}
-                        onChange={(e) => setLastName(e.target.value)}
+                        onChange={(e) => setLastName(stripNonLetters(e.target.value))}
                         onBlur={() => markTouched('lastName')}
                         aria-invalid={!!lastNameError}
                         className={inputClass(!!lastNameError)}
@@ -513,11 +518,11 @@ export default function LoginModal() {
                     />
                     <span>
                       I accept that I have read &amp; understood{' '}
-                      <Link href="/privacy" className="underline underline-offset-2 hover:text-ink">
+                      <Link href="/privacy" onClick={closeLogin} className="underline underline-offset-2 hover:text-ink">
                         Privacy Policy
                       </Link>{' '}
                       and{' '}
-                      <Link href="/terms" className="underline underline-offset-2 hover:text-ink">
+                      <Link href="/terms" onClick={closeLogin} className="underline underline-offset-2 hover:text-ink">
                         T&amp;Cs.
                       </Link>
                     </span>

@@ -13,14 +13,16 @@ export default function Footer() {
         <div className="grid grid-cols-2 md:grid-cols-12 gap-x-8 gap-y-8 pb-6">
           {/* Brand block — left */}
           <div className="col-span-2 md:col-span-4">
-            <img
-              src="/brand/cream-logo-horizontal.svg"
-              alt="Thridha Varnam"
-              width={320}
-              height={96}
-              className="h-24 md:h-28 w-auto select-none"
-              draggable={false}
-            />
+            <Link href="/home" aria-label="Thridha Varnam — home" className="inline-block">
+              <img
+                src="/brand/cream-logo-horizontal.svg"
+                alt="Thridha Varnam"
+                width={320}
+                height={96}
+                className="h-24 md:h-28 w-auto select-none"
+                draggable={false}
+              />
+            </Link>
             <p className="mt-3 text-xs text-ivory/55 leading-relaxed max-w-xs">
               Hand-woven heirloom sarees from India&apos;s six weaving traditions,
               shipped worldwide.

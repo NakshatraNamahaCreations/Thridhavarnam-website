@@ -8,6 +8,8 @@ import { backendToSaree, type BackendOccasion } from '@/lib/api';
 import { useHomeData } from '@/lib/home-data';
 import WishlistButton from '@/components/shop/WishlistButton';
 import AddToCartButton from '@/components/shop/AddToCartButton';
+import { getProductHero } from '@/lib/product-images';
+import { PRODUCT_BLUR_DATA_URL } from '@/lib/image-blur';
 
 type TabDef = { id: string; label: string; filter: (s: Saree) => boolean };
 
@@ -200,10 +202,12 @@ export default function Featured() {
               >
                 <div className="relative aspect-[4/5] overflow-hidden bg-bone">
                   <Image
-                    src={saree.image}
+                    src={getProductHero(saree)}
                     alt={saree.name}
                     fill
                     sizes="(max-width: 768px) 50vw, 25vw"
+                    placeholder="blur"
+                    blurDataURL={PRODUCT_BLUR_DATA_URL}
                     className={`object-cover transition-transform duration-500 group-hover:scale-105 ${outOfStock ? 'opacity-60 grayscale' : ''}`}
                   />
                   {outOfStock && (

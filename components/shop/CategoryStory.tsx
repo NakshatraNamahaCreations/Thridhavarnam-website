@@ -63,8 +63,17 @@ const STORIES: Record<string, Story> = {
   },
 };
 
+// Admin-stored category names sometimes come through as slugs
+// ("fancy-sarees" / "mixed_pattu"); title-case them so the h2 and the
+// STORIES lookup both work regardless of casing / separators.
+function humanize(raw: string): string {
+  const parts = raw.replace(/[-_]+/g, ' ').replace(/\s+/g, ' ').trim().split(' ');
+  return parts.map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w)).join(' ');
+}
+
 export default function CategoryStory({ weave }: { weave: string }) {
-  const story = STORIES[weave];
+  const display = humanize(weave);
+  const story = STORIES[weave] ?? STORIES[display];
   if (!story) return null;
 
   return (
@@ -76,7 +85,7 @@ export default function CategoryStory({ weave }: { weave: string }) {
               {story.region}
             </div>
             <h2 className="font-display text-[1.85rem] md:text-[2.25rem] lg:text-[2.5rem] font-medium text-ink leading-[1.1]">
-              {weave}
+              {display}
             </h2>
             <div className="mt-2 h-px w-12 bg-maroon/40" aria-hidden />
           </div>

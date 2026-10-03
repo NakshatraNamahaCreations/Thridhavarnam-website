@@ -50,12 +50,18 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
 
       gsap.registerPlugin(ScrollTrigger);
 
+      // `lerp` (default 0.1) interpolates toward the target by a fraction
+      // each frame — snappier and more consistent for continuous input
+      // than `duration + easing`, which restarts the ease curve on every
+      // wheel tick and tends to feel wobbly on fast repeated scrolling.
+      // `wheelMultiplier: 1` restores the browser's native wheel speed;
+      // the previous 0.9 made every scroll feel sluggish, especially on
+      // the entry heritage page where the user doesn't expect inertia.
       const lenis = new Lenis({
-        duration: 1.6,
-        easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
+        lerp: 0.1,
         smoothWheel: true,
-        wheelMultiplier: 0.7,
-        touchMultiplier: 1.2,
+        wheelMultiplier: 1,
+        touchMultiplier: 1.4,
       });
 
       window.__lenis = lenis;

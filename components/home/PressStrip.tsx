@@ -6,6 +6,8 @@ import Link from 'next/link';
 import { type Saree, formatINR, TIERS, productSlug } from '@/lib/sarees';
 import { productsApi, backendToSaree } from '@/lib/api';
 import WishlistButton from '@/components/shop/WishlistButton';
+import { getProductHero } from '@/lib/product-images';
+import { PRODUCT_BLUR_DATA_URL } from '@/lib/image-blur';
 
 type FastItem = { saree: Saree; stock: number };
 
@@ -132,10 +134,12 @@ export default function PressStrip() {
               >
                 <div className="relative aspect-[4/5] overflow-hidden bg-bone rounded-sm">
                   <Image
-                    src={saree.image}
+                    src={getProductHero(saree)}
                     alt={saree.name}
                     fill
                     sizes="(max-width: 640px) 46vw, (max-width: 768px) 46vw, (max-width: 1024px) 30vw, (max-width: 1280px) 23vw, 18vw"
+                    placeholder="blur"
+                    blurDataURL={PRODUCT_BLUR_DATA_URL}
                     className={`object-cover transition-transform duration-500 group-hover:scale-105 ${outOfStock ? 'opacity-60 grayscale' : ''}`}
                   />
                   {outOfStock ? (
