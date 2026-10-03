@@ -9,9 +9,9 @@
 // the public GET routes we added locally, so it returns 401.
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  // 'http://localhost:5005/api';
+  'http://localhost:5005/api';
   // 'https://sareeebackend.onrender.com/api';
-  'https://api.thridhavarnam.com/api';
+  // 'https://api.thridhavarnam.com/api';
 
 // Shape returned by GET /api/products and /api/products/:id — kept loose
 // (all fields optional) because older documents seeded before the accordion
@@ -291,9 +291,11 @@ export const reviewsApi = {
 export type BackendBanner = {
   id: string;
   // 'hero' for the home hero carousel (default), 'weave' for a
-  // Shop-by-weave tile image override.
-  type?: 'hero' | 'weave';
-  weave?: string;        // Category name; only set when type='weave'
+  // Shop-by-weave tile image override, 'parallax' for the mid-page
+  // Feature banner (ParallaxBanner.tsx).
+  type?: 'hero' | 'weave' | 'parallax';
+  // Category name when type='weave'; eyebrow/chip label when type='parallax'.
+  weave?: string;
   title?: string;
   subtitle?: string;
   image?: string;
