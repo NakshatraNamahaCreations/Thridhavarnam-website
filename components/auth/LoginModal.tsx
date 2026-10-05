@@ -518,11 +518,26 @@ export default function LoginModal() {
                     />
                     <span>
                       I accept that I have read &amp; understood{' '}
-                      <Link href="/privacy" onClick={closeLogin} className="underline underline-offset-2 hover:text-ink">
+                      {/* Open in a new tab so the register form stays mounted —
+                          otherwise closing the modal unmounts the form and the
+                          user loses everything they've typed. */}
+                      <Link
+                        href="/privacy"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="underline underline-offset-2 hover:text-ink"
+                      >
                         Privacy Policy
                       </Link>{' '}
                       and{' '}
-                      <Link href="/terms" onClick={closeLogin} className="underline underline-offset-2 hover:text-ink">
+                      <Link
+                        href="/terms"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        onClick={(e) => e.stopPropagation()}
+                        className="underline underline-offset-2 hover:text-ink"
+                      >
                         T&amp;Cs.
                       </Link>
                     </span>
