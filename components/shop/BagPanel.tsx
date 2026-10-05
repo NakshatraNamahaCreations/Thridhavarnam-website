@@ -139,11 +139,19 @@ export default function BagPanel({
                     <div className="text-xs text-ink/55 mb-3">{saree.region}</div>
 
                     <div className="flex items-end justify-between gap-3 mt-auto flex-wrap">
-                      <QtyStepper
-                        qty={qty}
-                        onMinus={() => updateCartQty(saree.id, qty - 1)}
-                        onPlus={() => updateCartQty(saree.id, qty + 1)}
-                      />
+                      <div className="flex flex-col gap-1">
+                        <QtyStepper
+                          qty={qty}
+                          onMinus={() => updateCartQty(saree.id, qty - 1)}
+                          onPlus={() => updateCartQty(saree.id, qty + 1)}
+                          max={saree.stock}
+                        />
+                        {typeof saree.stock === 'number' && saree.stock > 0 && qty >= saree.stock && (
+                          <span className="text-[0.7rem] text-maroon font-semibold">
+                            Only {saree.stock} in stock
+                          </span>
+                        )}
+                      </div>
                       <div className="flex items-baseline gap-4">
                         <span className="text-base font-bold text-ink tabular-nums">
                           {formatINR(saree.price * qty)}
@@ -302,11 +310,17 @@ function QtyStepper({
   qty,
   onMinus,
   onPlus,
+  max,
 }: {
   qty: number;
   onMinus: () => void;
   onPlus: () => void;
+  // Numeric upper bound (product stock). `undefined` = unlimited; the
+  // store still clamps as a safety net, but disabling the "+" visually
+  // tells the shopper why clicking it has stopped doing anything.
+  max?: number;
 }) {
+  const atCap = typeof max === 'number' && qty >= max;
   return (
     <div className="inline-flex items-center border border-ink/20">
       <button
@@ -321,8 +335,11 @@ function QtyStepper({
       <button
         type="button"
         onClick={onPlus}
+        disabled={atCap}
         aria-label="Increase quantity"
-        className="w-8 h-8 flex items-center justify-center text-ink hover:bg-maroon-deep hover:text-ivory transition-colors text-base"
+        aria-disabled={atCap}
+        title={atCap ? `Only ${max} in stock` : undefined}
+        className="w-8 h-8 flex items-center justify-center text-ink hover:bg-maroon-deep hover:text-ivory transition-colors text-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-ink"
       >
         +
       </button>

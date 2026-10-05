@@ -167,12 +167,18 @@ export default function CartDrawer() {
                     <div className="mt-1 text-sm font-bold text-ink tabular-nums">
                       {formatINR(saree.price * qty)}
                     </div>
-                    <div className="mt-auto pt-2 flex items-center justify-between">
+                    <div className="mt-auto pt-2 flex items-center justify-between gap-2">
                       <QtyStepper
                         qty={qty}
                         onMinus={() => updateCartQty(saree.id, qty - 1)}
                         onPlus={() => updateCartQty(saree.id, qty + 1)}
+                        max={saree.stock}
                       />
+                      {typeof saree.stock === 'number' && saree.stock > 0 && qty >= saree.stock && (
+                        <span className="text-[0.65rem] text-maroon font-semibold">
+                          Only {saree.stock} left
+                        </span>
+                      )}
                     </div>
                   </div>
                 </li>
@@ -242,11 +248,14 @@ function QtyStepper({
   qty,
   onMinus,
   onPlus,
+  max,
 }: {
   qty: number;
   onMinus: () => void;
   onPlus: () => void;
+  max?: number;
 }) {
+  const atCap = typeof max === 'number' && qty >= max;
   return (
     <div className="inline-flex items-center border border-ink/20">
       <button
@@ -261,8 +270,11 @@ function QtyStepper({
       <button
         type="button"
         onClick={onPlus}
+        disabled={atCap}
         aria-label="Increase quantity"
-        className="w-7 h-7 flex items-center justify-center text-ink hover:bg-maroon-deep hover:text-ivory transition-colors text-sm"
+        aria-disabled={atCap}
+        title={atCap ? `Only ${max} in stock` : undefined}
+        className="w-7 h-7 flex items-center justify-center text-ink hover:bg-maroon-deep hover:text-ivory transition-colors text-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-ink"
       >
         +
       </button>

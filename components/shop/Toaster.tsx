@@ -14,7 +14,10 @@ export default function Toaster() {
         const product = getProduct(t.productId);
         const isAdd = t.kind === 'cart-add' || t.kind === 'wishlist-add';
         const isCart = t.kind === 'cart-add' || t.kind === 'cart-remove';
-        const isBlocked = t.kind === 'wishlist-blocked';
+        const isBlocked =
+          t.kind === 'wishlist-blocked' ||
+          t.kind === 'cart-blocked' ||
+          t.kind === 'cart-limit';
         const accent = isBlocked
           ? 'border-l-amber-600'
           : isAdd
@@ -42,7 +45,9 @@ export default function Toaster() {
             )}
             <div className="flex-1 min-w-0">
               <div className="text-[0.7rem] text-ink/55 uppercase tracking-wide font-semibold mb-0.5">
-                {isBlocked
+                {t.kind === 'cart-limit'
+                  ? 'Stock Limit'
+                  : t.kind === 'cart-blocked' || t.kind === 'wishlist-blocked'
                   ? 'Out of Stock'
                   : isCart
                   ? isAdd
@@ -55,6 +60,9 @@ export default function Toaster() {
               <div className="text-sm font-semibold text-ink truncate">
                 {product?.name ?? 'Saree'}
               </div>
+              {t.kind === 'cart-limit' && (
+                <div className="text-xs text-ink/70 mt-0.5">{t.message}</div>
+              )}
               {isCart && isAdd && (
                 <Link
                   href="/shop?bag=1"

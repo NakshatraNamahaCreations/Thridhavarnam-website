@@ -13,7 +13,14 @@ import { SAREES, type Saree } from './sarees';
 import { productsApi, backendToSaree } from './api';
 
 export type CartItem = { productId: string; quantity: number };
-type ToastKind = 'cart-add' | 'cart-remove' | 'wishlist-add' | 'wishlist-remove' | 'wishlist-blocked';
+type ToastKind =
+  | 'cart-add'
+  | 'cart-remove'
+  | 'cart-limit'
+  | 'cart-blocked'
+  | 'wishlist-add'
+  | 'wishlist-remove'
+  | 'wishlist-blocked';
 
 export type Toast = {
   id: number;
@@ -146,24 +153,56 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const productName = (id: string) => getProduct(id)?.name ?? 'Saree';
 
   // ── Cart ─────────────────────────────────────────────────────────────
+  // The cart quantity for a product can never exceed its available stock.
+  // Stock is treated as unknown (→ unlimited) when the product record
+  // doesn't have a numeric `stock` field, so legacy static sarees without
+  // inventory tracking keep working. A known 0 or negative stock blocks
+  // the add outright with an OOS toast.
   const addToCart = useCallback(
     (productId: string, qty = 1) => {
+      const product = getProduct(productId);
+      const stock = product?.stock;
+      const maxQty = typeof stock === 'number' ? Math.max(0, stock) : Infinity;
+
+      if (maxQty <= 0) {
+        pushToast({
+          kind: 'cart-blocked',
+          productId,
+          message: `${productName(productId)} is out of stock`,
+        });
+        return;
+      }
+
+      const existing = state.cart.find((i) => i.productId === productId);
+      const currentQty = existing?.quantity ?? 0;
+      const finalQty = Math.min(currentQty + qty, maxQty);
+
+      if (finalQty === currentQty) {
+        pushToast({
+          kind: 'cart-limit',
+          productId,
+          message: `Only ${maxQty} in stock — already in your bag`,
+        });
+        return;
+      }
+
       setState((s) => {
-        const existing = s.cart.find((i) => i.productId === productId);
-        const cart = existing
+        const existing2 = s.cart.find((i) => i.productId === productId);
+        const cart = existing2
           ? s.cart.map((i) =>
-              i.productId === productId ? { ...i, quantity: i.quantity + qty } : i,
+              i.productId === productId ? { ...i, quantity: finalQty } : i,
             )
-          : [...s.cart, { productId, quantity: qty }];
+          : [...s.cart, { productId, quantity: finalQty }];
         return { ...s, cart };
       });
+
       pushToast({
         kind: 'cart-add',
         productId,
         message: `${productName(productId)} added to bag`,
       });
     },
-    [pushToast],
+    [state.cart, pushToast, getProduct],
   );
 
   const removeFromCart = useCallback(
@@ -181,19 +220,39 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     [pushToast],
   );
 
-  const updateCartQty = useCallback((productId: string, qty: number) => {
-    setState((s) => {
-      if (qty <= 0) {
-        return { ...s, cart: s.cart.filter((i) => i.productId !== productId) };
+  // Direct quantity override from the bag UI steppers. Clamps to stock
+  // the same way addToCart does, and toasts the user when they bump up
+  // against the cap so a disabled "+" button isn't a silent failure.
+  const updateCartQty = useCallback(
+    (productId: string, qty: number) => {
+      const product = getProduct(productId);
+      const stock = product?.stock;
+      const maxQty = typeof stock === 'number' ? Math.max(0, stock) : Infinity;
+      const clamped = qty <= 0 ? 0 : Math.min(qty, maxQty);
+      const hitCap = qty > 0 && Number.isFinite(maxQty) && qty > clamped;
+
+      setState((s) => {
+        if (clamped <= 0) {
+          return { ...s, cart: s.cart.filter((i) => i.productId !== productId) };
+        }
+        return {
+          ...s,
+          cart: s.cart.map((i) =>
+            i.productId === productId ? { ...i, quantity: clamped } : i,
+          ),
+        };
+      });
+
+      if (hitCap) {
+        pushToast({
+          kind: 'cart-limit',
+          productId,
+          message: `Only ${maxQty} in stock`,
+        });
       }
-      return {
-        ...s,
-        cart: s.cart.map((i) =>
-          i.productId === productId ? { ...i, quantity: qty } : i,
-        ),
-      };
-    });
-  }, []);
+    },
+    [getProduct, pushToast],
+  );
 
   const inCart = useCallback(
     (productId: string) => state.cart.some((i) => i.productId === productId),
