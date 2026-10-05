@@ -8,8 +8,11 @@
 // slow — Next was pulling the full-size original (4-6 MB) off Cloudinary
 // before it could hand anything to the browser.
 //
-// Local assets (/public/**) fall through to Next's default optimiser so
-// they still get WebP/AVIF conversion and srcset variants.
+// Local assets (/public/**) are served as-is: with `loader: 'custom'`
+// set globally in next.config.mjs, the built-in `/_next/image` endpoint
+// is disabled, so a round-trip through it 404s. Brand photos live in
+// /public already pre-sized and compressed, so skipping the optimiser
+// is a non-issue in practice.
 
 type LoaderArgs = { src: string; width: number; quality?: number };
 
@@ -38,7 +41,19 @@ export default function imageLoader({ src, width, quality }: LoaderArgs): string
     const q = typeof quality === 'number' ? `q_${quality}` : 'q_auto';
     return `${prefix}/f_auto,${q},w_${width},c_limit/${tail}`;
   }
-  // Local or other remote — Next's built-in optimiser handles it.
-  const q = quality ?? 75;
-  return `/_next/image?url=${encodeURIComponent(src)}&w=${width}&q=${q}`;
+
+  // Local public asset — serve the file directly. We can't route through
+  // `/_next/image` here because `loader: 'custom'` in next.config.mjs
+  // disables the built-in optimiser endpoint; a round-trip through it
+  // 404s. Returning `src` lets Next's static file server deliver the
+  // asset as-is. The signature of `_` arguments is kept so the loader
+  // contract matches what next/image expects.
+  if (src.startsWith('/') && !src.startsWith('//')) {
+    void width;
+    void quality;
+    return src;
+  }
+
+  // Remote (non-Cloudinary) URL — pass through unchanged.
+  return src;
 }

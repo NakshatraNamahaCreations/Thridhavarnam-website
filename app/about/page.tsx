@@ -5,6 +5,13 @@ import { PolicyHeader } from '@/components/policy/PolicyChrome';
 import BrandNameMeaning from '@/components/about/BrandNameMeaning';
 import LogoMeaning from '@/components/about/LogoMeaning';
 import VisionMission from '@/components/about/VisionMission';
+import {
+  storefrontInitApi,
+  storiesApi,
+  type BackendBanner,
+  type BackendCategory,
+  type BackendStory,
+} from '@/lib/api';
 
 export const metadata: Metadata = {
   title: 'About Us · Thridha Varnam',
@@ -29,7 +36,13 @@ const founders: { name: string; role: string; initials: string; bio: string }[] 
   },
 ];
 
-const weaves: { name: string; place: string; era: string; image: string }[] = [
+type WeaveTile = { name: string; place: string; era: string; image: string };
+
+// Editorial fallback — shown only when the backend returns no active
+// Categories (fresh install, backend down, etc.) so the grid never
+// renders empty. Live data is sourced from Categories (admin "Shop by
+// weave" tiles) with `era` enriched from matching Stories.
+const fallbackWeaves: WeaveTile[] = [
   { name: 'Kanjeevaram', place: 'Kanchipuram · Tamil Nadu', era: 'since the Chola dynasty', image: '/Byweaves/kanjeevaram.webp' },
   { name: 'Banarasi', place: 'Varanasi · Uttar Pradesh', era: 'since the Mughal court', image: '/Byweaves/banarasi.webp' },
   { name: 'Mysore Silk', place: 'Mysuru · Karnataka', era: 'since Tipu Sultan, 1780', image: '/Byweaves/Mysore%20silk.webp' },
@@ -40,6 +53,39 @@ const weaves: { name: string; place: string; era: string; image: string }[] = [
   { name: 'Fancy Sarees', place: 'Contemporary', era: 'designed for the wedding-adjacent', image: '/Byweaves/fancy-saree.webp' },
   { name: 'Mixed Pattu Sarees', place: 'Fusion · India', era: 'two traditions, one fold', image: '/Byweaves/Mixed-pattu.webp' },
 ];
+
+// Build the Eight Weaves grid from live backend data. Mirrors the
+// `WeaveRail` logic: Categories drive the grid, with `type='weave'`
+// Banners overriding tile images. `era` is pulled from a matching
+// Story when the admin has written one (Stories have era; Categories
+// don't), otherwise the era line is simply omitted for that tile.
+function buildWeavesFromBackend(
+  categories: BackendCategory[],
+  banners: BackendBanner[],
+  stories: BackendStory[],
+): WeaveTile[] {
+  const bannerImages: Record<string, string> = {};
+  for (const b of banners) {
+    if (b.type === 'weave' && b.active !== false && b.weave && b.image) {
+      bannerImages[b.weave] = b.image;
+    }
+  }
+
+  const eraByName: Record<string, string> = {};
+  for (const s of stories) {
+    if (s.name && s.era) eraByName[s.name] = s.era;
+  }
+
+  return categories
+    .filter((c) => c.active !== false && c.name)
+    .map<WeaveTile>((c) => ({
+      name: c.name,
+      place: c.region || '',
+      era: eraByName[c.name] || '',
+      image: bannerImages[c.name] || c.image || '',
+    }))
+    .filter((w) => Boolean(w.image));
+}
 
 const values: { title: string; body: string }[] = [
   {
@@ -92,7 +138,19 @@ const timeline: { year: string; title: string; body: string }[] = [
  * for headings, Plus Jakarta Sans for body) and the brand palette
  * (ivory / ink / maroon / gold).
  */
-export default function AboutPage() {
+export default async function AboutPage() {
+  // Fetch Categories + Banners (via the cached storefront/init batch) and
+  // Stories in parallel. Failures fall back to the editorial static list
+  // below so the grid never renders empty.
+  const [init, stories] = await Promise.all([
+    storefrontInitApi.get().catch(() => null),
+    storiesApi.list().catch(() => [] as BackendStory[]),
+  ]);
+  const dynamicWeaves = init
+    ? buildWeavesFromBackend(init.categories ?? [], init.banners ?? [], stories)
+    : [];
+  const weaves = dynamicWeaves.length > 0 ? dynamicWeaves : fallbackWeaves;
+
   return (
     <main className="bg-ivory text-ink">
       <PolicyHeader title="About Thridha Varnam" breadcrumb="Tradition in Every Color" />
@@ -132,7 +190,7 @@ export default function AboutPage() {
 
           <div className="lg:col-span-5 relative aspect-[4/5] overflow-hidden bg-bone">
             <Image
-              src="/photos/Heirloom%20edit.webp"
+              src="/photos/heirloom-edit.webp"
               alt="Thridha Varnam heirloom saree on a model"
               fill
               sizes="(max-width: 1024px) 100vw, 450px"
@@ -231,8 +289,12 @@ export default function AboutPage() {
                 </div>
                 <div className="p-3">
                   <div className="text-sm font-bold text-ink">{w.name}</div>
-                  <div className="text-xs text-ink/65 mt-0.5">{w.place}</div>
-                  <div className="text-[0.7rem] text-ink/55 mt-1 italic">{w.era}</div>
+                  {w.place && (
+                    <div className="text-xs text-ink/65 mt-0.5">{w.place}</div>
+                  )}
+                  {w.era && (
+                    <div className="text-[0.7rem] text-ink/55 mt-1 italic">{w.era}</div>
+                  )}
                 </div>
               </Link>
             ))}

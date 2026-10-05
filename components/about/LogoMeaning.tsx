@@ -1,5 +1,3 @@
-import Image from 'next/image';
-
 /**
  * LogoMeaning — kit-verbatim "Logo Meaning" paragraph from page 5 of
  * the official Thridha Varnam brand identity (2026-06-15). Pairs the
@@ -18,16 +16,18 @@ export default function LogoMeaning() {
     <section className="bg-ivory border-y border-maroon/10">
       <div className="max-w-[1100px] mx-auto px-6 lg:px-10 py-16 md:py-20 lg:py-24">
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-14 items-center">
-          {/* Vertical lockup */}
+          {/* Vertical lockup — plain <img> because Next's image optimiser
+              refuses to serve SVGs by default. Matches how every other
+              brand SVG is rendered across the site (Footer, LoginModal…). */}
           <div className="lg:col-span-5">
-            <div className="relative aspect-[4/5] max-w-[360px] mx-auto bg-ivory no-pattern">
-              <Image
+            <div className="max-w-[360px] mx-auto bg-ivory no-pattern">
+              <img
                 src="/brand/logo-vertical.svg"
                 alt="Thridha Varnam vertical lockup"
-                fill
-                sizes="(max-width: 1024px) 80vw, 360px"
-                className="object-contain"
-                priority={false}
+                width={360}
+                height={450}
+                className="w-full h-auto select-none"
+                draggable={false}
               />
             </div>
           </div>
