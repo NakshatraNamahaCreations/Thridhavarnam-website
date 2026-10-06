@@ -11,3 +11,28 @@
   # Points the storefront at the deployed backend. Override in Site config
   # → Env vars if you need to swap environments without a redeploy.
   NEXT_PUBLIC_API_URL = "https://api.thridhavarnam.com/api"
+
+# Netlify's default for static files is `public, max-age=0, must-revalidate`,
+# which makes every PDP visit re-fetch all the product photos even if they
+# haven't changed. Product photography is effectively immutable (new shots
+# get new filenames), so bake in a year-long immutable cache — repeat
+# visits now hit the browser disk cache and the thumbnails appear instantly.
+[[headers]]
+  for = "/**/*.webp"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/**/*.png"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/**/*.jpg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/**/*.svg"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"

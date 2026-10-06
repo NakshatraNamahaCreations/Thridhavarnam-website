@@ -1,10 +1,11 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { type SAREES, formatINR, getColorways } from '@/lib/sarees';
 import { useShop } from '@/lib/shop-store';
 import { useCheckoutModal } from '@/lib/checkout-modal';
 import { useLoginModal } from '@/lib/login-modal';
+import { useCartDrawer } from '@/lib/cart-drawer';
 import { useAuth } from '@/lib/auth';
 
 type Saree = (typeof SAREES)[number];
@@ -31,9 +32,33 @@ export default function ProductInfo({
   const { addToCart, inCart, toggleWishlist, inWishlist, hydrated } = useShop();
   const { openCheckout } = useCheckoutModal();
   const { openLogin } = useLoginModal();
+  const { openCart } = useCartDrawer();
   const { user, hydrated: authHydrated } = useAuth();
 
   const outOfStock = typeof saree.stock === 'number' && saree.stock <= 0;
+  const alreadyInCart = hydrated && inCart(saree.id);
+
+  // Guard against the "mash the button" race — React batches state so
+  // the UI's `alreadyInCart` only reflects true on the next render, but
+  // a user who clicks three times in 50ms would otherwise add qty 3
+  // before the button swaps to "View Bag". The ref flips synchronously
+  // on the first click and resets on the next tick, so repeat clicks
+  // in the same frame are swallowed before they reach the store.
+  const addingRef = useRef(false);
+  const handleAddToCart = () => {
+    if (outOfStock) return;
+    if (alreadyInCart || addingRef.current) {
+      openCart();
+      return;
+    }
+    addingRef.current = true;
+    addToCart(saree.id, 1);
+    // Release the lock on the next tick — by then React has committed
+    // the cart update and `alreadyInCart` will be true on the next click.
+    window.setTimeout(() => {
+      addingRef.current = false;
+    }, 0);
+  };
 
   // Express-checkout: drop the saree into the cart (if not already there)
   // and open the checkout popup. Gated — opens the login modal first if
@@ -245,12 +270,24 @@ export default function ProductInfo({
           <>
             <button
               type="button"
-              onClick={() => addToCart(saree.id, 1)}
+              onClick={handleAddToCart}
+              aria-pressed={alreadyInCart}
               className="w-full border-2 border-gray-900 text-gray-900 bg-white py-3.5 text-sm font-bold uppercase tracking-wide hover:bg-gray-900 hover:text-white transition-colors flex items-center justify-center gap-3"
             >
-              <span>Add to Cart</span>
-              <span className="w-1 h-1 rounded-full bg-current" />
-              <span className="tabular-nums">{formatINR(total)}</span>
+              {alreadyInCart ? (
+                <>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                    <path d="M20 6 9 17l-5-5" />
+                  </svg>
+                  <span>In Your Bag — View</span>
+                </>
+              ) : (
+                <>
+                  <span>Add to Cart</span>
+                  <span className="w-1 h-1 rounded-full bg-current" />
+                  <span className="tabular-nums">{formatINR(total)}</span>
+                </>
+              )}
             </button>
             <button
               type="button"

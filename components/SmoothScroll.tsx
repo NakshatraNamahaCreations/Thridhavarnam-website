@@ -57,11 +57,14 @@ export default function SmoothScroll({ children }: { children: React.ReactNode }
       // `wheelMultiplier: 1` restores the browser's native wheel speed;
       // the previous 0.9 made every scroll feel sluggish, especially on
       // the entry heritage page where the user doesn't expect inertia.
+      // `touchMultiplier: 1` keeps touch 1:1 with finger movement — the
+      // previous 1.4× was amplifying every swipe on mobile and reading
+      // as overshoot/lag on the long heritage scroll.
       const lenis = new Lenis({
         lerp: 0.1,
         smoothWheel: true,
         wheelMultiplier: 1,
-        touchMultiplier: 1.4,
+        touchMultiplier: 1,
       });
 
       window.__lenis = lenis;

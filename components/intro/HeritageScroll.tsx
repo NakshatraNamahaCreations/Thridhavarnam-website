@@ -309,7 +309,12 @@ export default function HeritageScroll() {
                     alt={cat.name}
                     fill
                     sizes="(max-width: 640px) 100vw, (max-width: 1280px) 33vw, 20vw"
-                    quality={92}
+                    // No `quality` — the custom loader falls back to
+                    // Cloudinary's `q_auto` which content-adaptively
+                    // picks a smaller file (often 30–50% lighter than
+                    // q_92) with no visible loss. Big mobile win.
+                    priority={idx < 2}
+                    loading={idx < 2 ? undefined : 'lazy'}
                     className="object-cover transition-transform duration-[1400ms] ease-out group-hover:scale-[1.06]"
                   />
                   <div

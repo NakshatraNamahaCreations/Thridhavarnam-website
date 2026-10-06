@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { STANDARD_COLORWAYS } from '@/lib/sarees';
 import type { Tier, Weave } from '@/lib/sarees';
 import { storefrontInitApi } from '@/lib/api';
 
@@ -33,14 +32,13 @@ export type FilterState = {
   weaves: Weave[];
   bracket: string | null;
   sale: boolean;
-  colors: string[]; // STANDARD_COLORWAYS ids
   occasions: string[]; // backend occasion ids
   flags: string[]; // 'bestseller' | 'new_in'
   q: string; // free-text search from the navbar
 };
 
 export const EMPTY_FILTERS: FilterState = {
-  tiers: [], weaves: [], bracket: null, sale: false, colors: [], occasions: [], flags: [], q: '',
+  tiers: [], weaves: [], bracket: null, sale: false, occasions: [], flags: [], q: '',
 };
 
 export const CATEGORY_FLAGS: { key: string; label: string }[] = [
@@ -109,7 +107,6 @@ export default function FilterRail({
   counts: {
     tier: Record<Tier, number>;
     weave: Record<string, number>;
-    color: Record<string, number>;
     occasion: Record<string, number>;
     flag: Record<string, number>;
     sale: number;
@@ -121,7 +118,7 @@ export default function FilterRail({
   const activeCount =
     filters.tiers.length + filters.weaves.length +
     (filters.bracket ? 1 : 0) + (filters.sale ? 1 : 0) +
-    filters.colors.length + filters.occasions.length + filters.flags.length;
+    filters.occasions.length + filters.flags.length;
 
   // Weave options come from the backend Categories taxonomy so adding /
   // renaming a category in the admin panel is reflected here without a
@@ -150,12 +147,6 @@ export default function FilterRail({
   });
   const selectBracket = (id: string) => onChange({
     ...filters, bracket: filters.bracket === id ? null : id,
-  });
-  const toggleColor = (id: string) => onChange({
-    ...filters,
-    colors: filters.colors.includes(id)
-      ? filters.colors.filter((x) => x !== id)
-      : [...filters.colors, id],
   });
   const toggleOccasion = (id: string) => onChange({
     ...filters,
@@ -222,47 +213,6 @@ export default function FilterRail({
           ))}
         </Section>
       )}
-
-      <Section title="Color">
-        <div className="flex flex-wrap gap-2">
-          {STANDARD_COLORWAYS.map((c) => {
-            const active = filters.colors.includes(c.id);
-            const count = counts.color[c.id] ?? 0;
-            const disabled = count === 0 && !active;
-            return (
-              <button
-                key={c.id}
-                type="button"
-                onClick={() => toggleColor(c.id)}
-                aria-label={`Filter by ${c.name} (${count})`}
-                aria-pressed={active}
-                disabled={disabled}
-                title={`${c.name} (${count})`}
-                className={`relative w-8 h-8 rounded-full border-2 transition-all ${
-                  active
-                    ? 'border-gray-900 p-0.5'
-                    : disabled
-                    ? 'border-transparent opacity-30 cursor-not-allowed p-0.5'
-                    : 'border-transparent hover:border-gray-400 p-0.5'
-                }`}
-              >
-                <span
-                  className="block w-full h-full rounded-full border border-gray-200"
-                  style={{ backgroundColor: c.hex }}
-                />
-              </button>
-            );
-          })}
-        </div>
-        {filters.colors.length > 0 && (
-          <div className="mt-2 text-xs text-gray-600">
-            {filters.colors
-              .map((id) => STANDARD_COLORWAYS.find((c) => c.id === id)?.name)
-              .filter(Boolean)
-              .join(' · ')}
-          </div>
-        )}
-      </Section>
 
       <Section title="Price">
         {PRICE_BRACKETS.map((b) => (

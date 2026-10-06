@@ -438,8 +438,11 @@ export default function LoginModal() {
                     error={signupEmailError}
                   />
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <div>
+                  {/* Mobile + DOB — stacked on mobile (<640px) so the +91
+                      prefix + 10-digit input + placeholder don't clip
+                      against half-row width; side-by-side from sm: up. */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                    <div className="min-w-0">
                       <label htmlFor="mobile" className="block text-sm font-semibold text-ink mb-1.5">
                         Mobile number<RequiredMark />
                       </label>
@@ -450,7 +453,7 @@ export default function LoginModal() {
                             : 'border-ink/20 focus-within:border-ink'
                         }`}
                       >
-                        <span className="px-3 py-3 text-sm text-ink/55 border-r border-ink/20 bg-ink/5 select-none">
+                        <span className="shrink-0 px-3 py-3 text-sm text-ink/55 border-r border-ink/20 bg-ink/5 select-none">
                           +91
                         </span>
                         <input
@@ -465,7 +468,7 @@ export default function LoginModal() {
                           onChange={(e) => setMobile(e.target.value.replace(/\D/g, ''))}
                           onBlur={() => markTouched('mobile')}
                           aria-invalid={!!mobileError}
-                          className="w-full bg-transparent px-3 py-3 text-sm text-ink placeholder:text-ink/40 focus:outline-none"
+                          className="min-w-0 w-full bg-transparent px-3 py-3 text-sm text-ink placeholder:text-ink/40 focus:outline-none"
                         />
                       </div>
                       <InlineError msg={mobileError} />

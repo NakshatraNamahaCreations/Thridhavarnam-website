@@ -23,13 +23,13 @@ export default function Footer() {
                 draggable={false}
               />
             </Link>
-            <p className="mt-3 text-xs text-ivory/55 leading-relaxed max-w-xs">
+            <p className="mt-3 text-sm md:text-xs text-ivory/55 leading-relaxed max-w-xs">
               Hand-woven heirloom sarees from India&apos;s six weaving traditions,
               shipped worldwide.
             </p>
 
             <div className="mt-5">
-              <div className="text-[0.65rem] tracking-[0.2em] uppercase text-ivory/55 mb-2">
+              <div className="text-xs md:text-[0.65rem] tracking-[0.2em] uppercase text-ivory/55 mb-2">
                 Follow Us
               </div>
               <div className="flex items-center gap-2">
@@ -48,22 +48,22 @@ export default function Footer() {
               </div>
             </div>
 
-            <div className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 max-w-xs text-xs">
-              <div>
-                <div className="text-[0.65rem] tracking-[0.2em] uppercase text-ivory/55 mb-1">
+            <div className="mt-5 grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-3 max-w-xs text-sm md:text-xs">
+              <div className="min-w-0">
+                <div className="text-xs md:text-[0.65rem] tracking-[0.2em] uppercase text-ivory/55 mb-1">
                   Get in touch
                 </div>
                 <a href="tel:+919949528787" className="text-ivory/75 hover:text-ivory">
                   +91 99495 28787
                 </a>
               </div>
-              <div>
-                <div className="text-[0.65rem] tracking-[0.2em] uppercase text-ivory/55 mb-1">
+              <div className="min-w-0">
+                <div className="text-xs md:text-[0.65rem] tracking-[0.2em] uppercase text-ivory/55 mb-1">
                   Email us
                 </div>
                 <a
                   href="mailto:thridhavarnam@gmail.com"
-                  className="text-ivory/75 hover:text-ivory whitespace-nowrap"
+                  className="text-ivory/75 hover:text-ivory break-all md:whitespace-nowrap md:break-normal"
                 >
                   thridhavarnam@gmail.com
                 </a>
@@ -72,8 +72,8 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-2">
-            <div className="text-xs font-semibold tracking-[0.18em] uppercase text-ivory mb-3">Shop</div>
-            <ul className="space-y-1.5 text-xs text-ivory/65">
+            <div className="text-sm md:text-xs font-semibold tracking-[0.18em] uppercase text-ivory mb-3">Shop</div>
+            <ul className="space-y-1.5 text-sm md:text-xs text-ivory/65">
               <li><Link href="/shop" className="hover:text-ivory">All Sarees</Link></li>
               <li><Link href="/shop" className="hover:text-ivory">New In</Link></li>
               <li><Link href="/shop?tier=bridal" className="hover:text-ivory">Bridal</Link></li>
@@ -84,8 +84,8 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-2">
-            <div className="text-xs font-semibold tracking-[0.18em] uppercase text-ivory mb-3">Weaves</div>
-            <ul className="space-y-1.5 text-xs text-ivory/65">
+            <div className="text-sm md:text-xs font-semibold tracking-[0.18em] uppercase text-ivory mb-3">Weaves</div>
+            <ul className="space-y-1.5 text-sm md:text-xs text-ivory/65">
               <li><Link href="/shop?weave=Kanjivaram" className="hover:text-ivory">Kanjeevaram</Link></li>
               <li><Link href="/shop?weave=Banarasi" className="hover:text-ivory">Banarasi</Link></li>
               <li><Link href="/shop?weave=Mysore+Silk" className="hover:text-ivory">Mysore Silk</Link></li>
@@ -99,8 +99,8 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-2">
-            <div className="text-xs font-semibold tracking-[0.18em] uppercase text-ivory mb-3">Company</div>
-            <ul className="space-y-1.5 text-xs text-ivory/65">
+            <div className="text-sm md:text-xs font-semibold tracking-[0.18em] uppercase text-ivory mb-3">Company</div>
+            <ul className="space-y-1.5 text-sm md:text-xs text-ivory/65">
               <li><Link href="/about" className="hover:text-ivory">About Us</Link></li>
               <li><Link href="/account" className="hover:text-ivory">My Account</Link></li>
               <li><Link href="/account/orders" className="hover:text-ivory">My Orders</Link></li>
@@ -108,8 +108,8 @@ export default function Footer() {
           </div>
 
           <div className="md:col-span-2">
-            <div className="text-xs font-semibold tracking-[0.18em] uppercase text-ivory mb-3">Help &amp; Policies</div>
-            <ul className="space-y-1.5 text-xs text-ivory/65">
+            <div className="text-sm md:text-xs font-semibold tracking-[0.18em] uppercase text-ivory mb-3">Help &amp; Policies</div>
+            <ul className="space-y-1.5 text-sm md:text-xs text-ivory/65">
               <li><Link href="/shipping" className="hover:text-ivory">Shipping Policy</Link></li>
               <li><Link href="/returns" className="hover:text-ivory">Return &amp; Refund Policy</Link></li>
               <li><Link href="/care" className="hover:text-ivory">Care Guide</Link></li>
@@ -125,10 +125,10 @@ export default function Footer() {
             overflows or truncates. */}
         <div
           data-footer-bottom
-          className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 pt-5 border-t border-ivory/10 text-[0.7rem] text-ivory/45"
+          className="flex flex-col md:flex-row items-start md:items-center justify-between gap-2 pt-5 border-t border-ivory/10 text-xs md:text-[0.7rem] text-ivory/45"
         >
           <div>© {new Date().getFullYear()} Thridha Varnam · Hand-woven in India · Shipping worldwide</div>
-          <div className="text-[0.7rem] text-ivory/45">
+          <div className="text-xs md:text-[0.7rem] text-ivory/45">
             Developed by{' '}
             <a
               href="https://www.nakshatranamahacreations.com/"

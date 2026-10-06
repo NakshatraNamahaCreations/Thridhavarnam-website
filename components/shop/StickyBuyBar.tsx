@@ -1,10 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Image from 'next/image';
 import { type SAREES, formatINR } from '@/lib/sarees';
 import { getProductHero } from '@/lib/product-images';
 import { useShop } from '@/lib/shop-store';
+import { useCartDrawer } from '@/lib/cart-drawer';
 
 type Saree = (typeof SAREES)[number];
 
@@ -20,7 +21,8 @@ export default function StickyBuyBar({
   saree: Saree;
   mrp?: number;
 }) {
-  const { addToCart } = useShop();
+  const { addToCart, inCart, hydrated } = useShop();
+  const { openCart } = useCartDrawer();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -32,6 +34,24 @@ export default function StickyBuyBar({
 
   const discount = mrp ? Math.round(((mrp - saree.price) / mrp) * 100) : 0;
   const outOfStock = typeof saree.stock === 'number' && saree.stock <= 0;
+  const alreadyInCart = hydrated && inCart(saree.id);
+
+  // Same double-click guard as ProductInfo — swallow repeat clicks in
+  // the same frame so a user mashing the button can't inflate quantity
+  // before `alreadyInCart` flips to true on the next render.
+  const addingRef = useRef(false);
+  const handleAddToCart = () => {
+    if (outOfStock) return;
+    if (alreadyInCart || addingRef.current) {
+      openCart();
+      return;
+    }
+    addingRef.current = true;
+    addToCart(saree.id, 1);
+    window.setTimeout(() => {
+      addingRef.current = false;
+    }, 0);
+  };
 
   return (
     <div
@@ -75,12 +95,26 @@ export default function StickyBuyBar({
         ) : (
           <button
             type="button"
-            onClick={() => addToCart(saree.id, 1)}
+            onClick={handleAddToCart}
+            aria-pressed={alreadyInCart}
             className="shrink-0 border-2 border-gray-900 text-gray-900 bg-white px-5 lg:px-8 py-3 text-sm font-bold uppercase tracking-wide hover:bg-gray-900 hover:text-white transition-colors flex items-center gap-2"
           >
-            <span>Add to Cart</span>
-            <span className="hidden sm:inline">·</span>
-            <span className="hidden sm:inline tabular-nums">{formatINR(saree.price)}</span>
+            {alreadyInCart ? (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                  <path d="M20 6 9 17l-5-5" />
+                </svg>
+                <span>In Your Bag</span>
+                <span className="hidden sm:inline">·</span>
+                <span className="hidden sm:inline">View</span>
+              </>
+            ) : (
+              <>
+                <span>Add to Cart</span>
+                <span className="hidden sm:inline">·</span>
+                <span className="hidden sm:inline tabular-nums">{formatINR(saree.price)}</span>
+              </>
+            )}
           </button>
         )}
       </div>

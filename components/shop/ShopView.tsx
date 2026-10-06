@@ -6,9 +6,6 @@ import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   TIERS,
-  STANDARD_COLORWAYS,
-  sareeMatchesColor,
-  getSareeColorGroup,
   type Saree,
 } from '@/lib/sarees';
 import type { Tier, Weave } from '@/lib/sarees';
@@ -67,7 +64,6 @@ function parseFiltersFromSearch(params: URLSearchParams): FilterState {
   const weaveCsv = params.get('weave');
   const bracket = params.get('bracket');
   const sale = params.get('sale') === '1';
-  const colorCsv = params.get('color');
   const occasionCsv = params.get('occasion');
   const flagCsv = params.get('flag');
   const q = (params.get('q') ?? '').trim();
@@ -78,15 +74,11 @@ function parseFiltersFromSearch(params: URLSearchParams): FilterState {
   const weaves = weaveCsv
     ? (weaveCsv.split(',') as Weave[])
     : [];
-  const validColorIds = new Set(STANDARD_COLORWAYS.map((c) => c.id));
-  const colors = colorCsv
-    ? colorCsv.split(',').filter((id) => validColorIds.has(id))
-    : [];
   const occasions = occasionCsv ? occasionCsv.split(',').filter(Boolean) : [];
   const validFlags = new Set(CATEGORY_FLAGS.map((f) => f.key));
   const flags = flagCsv ? flagCsv.split(',').filter((f) => validFlags.has(f)) : [];
 
-  return { tiers, weaves, bracket, sale, colors, occasions, flags, q };
+  return { tiers, weaves, bracket, sale, occasions, flags, q };
 }
 
 function writeFiltersToSearch(
@@ -102,8 +94,9 @@ function writeFiltersToSearch(
   else next.delete('bracket');
   if (filters.sale) next.set('sale', '1');
   else next.delete('sale');
-  if (filters.colors.length) next.set('color', filters.colors.join(','));
-  else next.delete('color');
+  // `color` query param is intentionally dropped — old bookmarks that still
+  // carry it fall through harmlessly, and no new UI writes it.
+  next.delete('color');
   if (filters.occasions.length) next.set('occasion', filters.occasions.join(','));
   else next.delete('occasion');
   if (filters.flags.length) next.set('flag', filters.flags.join(','));
@@ -232,11 +225,6 @@ export default function ShopView() {
     if (filters.sale) {
       items = items.filter(isOnSale);
     }
-    if (filters.colors.length) {
-      items = items.filter((s) =>
-        filters.colors.some((id) => sareeMatchesColor(s, id)),
-      );
-    }
     if (filters.occasions.length) {
       // Product records may store either an occasion's id (what the
       // admin Products form saves — <option value={o.id}>) or its name
@@ -294,7 +282,6 @@ export default function ShopView() {
       everyday: 0,
     };
     const weaveCounts: Record<string, number> = {};
-    const colorCounts: Record<string, number> = {};
     const occasionCounts: Record<string, number> = {};
     const flagCounts: Record<string, number> = {};
     let saleCount = 0;
@@ -302,14 +289,12 @@ export default function ShopView() {
       if (s.tier in tierCounts) tierCounts[s.tier] += 1;
       if (s.weave) weaveCounts[s.weave] = (weaveCounts[s.weave] ?? 0) + 1;
       if (isOnSale(s)) saleCount += 1;
-      const group = getSareeColorGroup(s);
-      colorCounts[group] = (colorCounts[group] ?? 0) + 1;
       if (s.occasion) occasionCounts[s.occasion] = (occasionCounts[s.occasion] ?? 0) + 1;
       if (Array.isArray(s.flags)) {
         s.flags.forEach((f) => { flagCounts[f] = (flagCounts[f] ?? 0) + 1; });
       }
     });
-    return { tier: tierCounts, weave: weaveCounts, color: colorCounts, occasion: occasionCounts, flag: flagCounts, sale: saleCount };
+    return { tier: tierCounts, weave: weaveCounts, occasion: occasionCounts, flag: flagCounts, sale: saleCount };
   }, [catalog]);
 
   // ── Page heading derived from filter state ────────────────────────────
@@ -336,7 +321,6 @@ export default function ShopView() {
     !filters.weaves.length &&
     !filters.bracket &&
     !filters.sale &&
-    !filters.colors.length &&
     !filters.occasions.length &&
     !filters.flags.length &&
     !filters.q;
@@ -348,7 +332,6 @@ export default function ShopView() {
     filters.weaves.length > 0 ||
     !!filters.bracket ||
     filters.sale ||
-    filters.colors.length > 0 ||
     filters.occasions.length > 0 ||
     filters.flags.length > 0 ||
     !!filters.q;
@@ -368,8 +351,7 @@ export default function ShopView() {
       {filters.weaves.length === 1 &&
         !filters.tiers.length &&
         !filters.bracket &&
-        !filters.sale &&
-        !filters.colors.length && (
+        !filters.sale && (
           <CategoryStory weave={filters.weaves[0]} />
         )}
 
@@ -514,7 +496,6 @@ export default function ShopView() {
                 const isSoloWeave =
                   filters.weaves.length === 1 &&
                   filters.tiers.length === 0 &&
-                  filters.colors.length === 0 &&
                   filters.occasions.length === 0 &&
                   filters.flags.length === 0 &&
                   !filters.bracket &&

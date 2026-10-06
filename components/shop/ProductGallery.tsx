@@ -1,8 +1,9 @@
 'use client';
 
 import Image from 'next/image';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { PRODUCT_BLUR_DATA_URL } from '@/lib/image-blur';
+import imageLoader from '@/lib/image-loader';
 
 /**
  * ProductGallery — Kalki-style PDP gallery.
@@ -31,6 +32,53 @@ export default function ProductGallery({
 
   const main = images[active] ?? images[0];
   const carousel = images.length > THUMB_LIMIT;
+
+  // Warm the browser cache for the OTHER gallery frames at main-stage
+  // size, but only AFTER the first paint — otherwise these full-size
+  // requests fight the hero and the small thumbnails for bandwidth and
+  // slow the page down instead of helping. requestIdleCallback (fallback
+  // setTimeout) runs this in the browser's idle time; fetchpriority=low
+  // keeps it behind anything the user is actually looking at. Resulting
+  // bytes land in the HTTP cache, so clicking a thumb later renders
+  // instantly from disk.
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const warm = () => {
+      // Cap at the first few non-active frames — PDPs with 7+ images
+      // would otherwise fire a dozen background requests on top of the
+      // visible ones. Three covers the common "click the next thumb"
+      // case while leaving bandwidth for the user's actual actions.
+      let warmed = 0;
+      for (let i = 0; i < images.length && warmed < 3; i++) {
+        if (i === active) continue;
+        const img = new window.Image();
+        // fetchpriority is a plain HTML attribute — set it via setAttribute
+        // so it survives even on browsers that don't type the property.
+        img.setAttribute('fetchpriority', 'low');
+        img.decoding = 'async';
+        // Route through the same loader next/image uses so Cloudinary
+        // serves a w_600 variant instead of the full-size original.
+        img.src = imageLoader({ src: images[i], width: 600 });
+        warmed++;
+      }
+    };
+    const ric = (window as unknown as {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+    }).requestIdleCallback;
+    const handle = ric
+      ? ric(warm, { timeout: 2500 })
+      : window.setTimeout(warm, 800);
+    return () => {
+      const cic = (window as unknown as {
+        cancelIdleCallback?: (h: number) => void;
+      }).cancelIdleCallback;
+      if (ric && cic) cic(handle as number);
+      else window.clearTimeout(handle as number);
+    };
+    // We intentionally re-run when the image list changes, not on every
+    // `active` tick — otherwise flipping thumbs would re-queue work.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [images]);
 
   // Scroll the vertical thumbnail rail by ~3 thumbs per arrow click. Reads
   // the first child's height so changes to thumb aspect ratio or gap stay
@@ -158,8 +206,8 @@ export default function ProductGallery({
             alt={alt}
             fill
             priority
+            fetchPriority="high"
             sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 600px"
-            quality={95}
             placeholder="blur"
             blurDataURL={PRODUCT_BLUR_DATA_URL}
             className="object-cover"
