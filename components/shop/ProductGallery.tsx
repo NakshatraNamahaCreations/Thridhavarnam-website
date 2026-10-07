@@ -8,14 +8,16 @@ import imageLoader from '@/lib/image-loader';
 /**
  * ProductGallery — Kalki-style PDP gallery.
  *
- * Vertical thumbnail rail on the left, large main image on the right with a
- * hover-to-zoom magnifier overlay. On hover, the cursor area is sampled and
- * the same image is shown at higher scale, anchored to the cursor position.
+ * Vertical thumbnail rail on the left, large main image on the right with
+ * manual zoom controls (+/- buttons) and drag-to-pan while zoomed.
  */
 // Max thumbnails visible in the desktop rail before the list becomes a
 // vertical carousel. Chosen so a tall PDP (aspect-[4/5] main image at
 // ~800px) still shows every thumb without the rail overflowing the main.
 const THUMB_LIMIT = 7;
+
+// Manual zoom steps — 1x = fit, each + button press advances to the next.
+const ZOOM_STEPS = [1, 1.5, 2, 2.5, 3] as const;
 
 export default function ProductGallery({
   images,
@@ -25,10 +27,19 @@ export default function ProductGallery({
   alt: string;
 }) {
   const [active, setActive] = useState(0);
-  const [zoom, setZoom] = useState(false);
-  const [pos, setPos] = useState({ x: 50, y: 50 });
+  // Manual zoom state. `zoomIdx` indexes into ZOOM_STEPS so + / - cycle
+  // between discrete, predictable magnifications. `offset` is the pan
+  // translation in px applied to the zoomed image. `drag` tracks an
+  // in-flight pointer drag so pan continues while the pointer is held.
+  const [zoomIdx, setZoomIdx] = useState(0);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const dragRef = useRef<{ startX: number; startY: number; baseX: number; baseY: number } | null>(null);
+  const [dragging, setDragging] = useState(false);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const thumbsRef = useRef<HTMLDivElement | null>(null);
+
+  const zoomLevel = ZOOM_STEPS[zoomIdx];
+  const isZoomed = zoomIdx > 0;
 
   const main = images[active] ?? images[0];
   const carousel = images.length > THUMB_LIMIT;
@@ -91,20 +102,59 @@ export default function ProductGallery({
     el.scrollBy({ top: dir * step, behavior: 'smooth' });
   };
 
-  // Track cursor / finger position relative to the stage so the zoom
-  // layer can anchor to it. Takes raw coords so it works for both mouse
-  // events (clientX/Y on MouseEvent) and touch events (clientX/Y on
-  // Touch). One source of truth, two input paths registered below.
-  const updatePos = (clientX: number, clientY: number) => {
+  // Reset zoom + pan whenever the user switches to a different thumbnail
+  // so each new image starts from the fit view instead of inheriting a
+  // crop that may land on empty space.
+  useEffect(() => {
+    setZoomIdx(0);
+    setOffset({ x: 0, y: 0 });
+  }, [active]);
+
+  // Clamp an offset so the zoomed image can't be dragged past its own
+  // edges. At scale S, the overflow on each axis is (S-1) * halfSide,
+  // which is also (S-1) * rect.{width,height} / 2.
+  const clampOffset = (x: number, y: number) => {
     const el = stageRef.current;
-    if (!el) return;
+    if (!el) return { x: 0, y: 0 };
     const rect = el.getBoundingClientRect();
-    const x = ((clientX - rect.left) / rect.width) * 100;
-    const y = ((clientY - rect.top) / rect.height) * 100;
-    setPos({
-      x: Math.max(0, Math.min(100, x)),
-      y: Math.max(0, Math.min(100, y)),
+    const maxX = ((zoomLevel - 1) * rect.width) / 2;
+    const maxY = ((zoomLevel - 1) * rect.height) / 2;
+    return {
+      x: Math.max(-maxX, Math.min(maxX, x)),
+      y: Math.max(-maxY, Math.min(maxY, y)),
+    };
+  };
+
+  const zoomIn = () => {
+    setZoomIdx((i) => Math.min(ZOOM_STEPS.length - 1, i + 1));
+  };
+  const zoomOut = () => {
+    setZoomIdx((i) => {
+      const next = Math.max(0, i - 1);
+      // Snap pan back to centre when we return to 1x so the next zoom-in
+      // starts from a neutral position.
+      if (next === 0) setOffset({ x: 0, y: 0 });
+      return next;
     });
+  };
+
+  // Drag-to-pan — shared mouse + touch handlers. The ref captures the
+  // starting pointer position AND the pan offset at drag-start so moves
+  // compute a delta from that anchor instead of accumulating round-off.
+  const beginDrag = (clientX: number, clientY: number) => {
+    if (!isZoomed) return;
+    dragRef.current = { startX: clientX, startY: clientY, baseX: offset.x, baseY: offset.y };
+    setDragging(true);
+  };
+  const moveDrag = (clientX: number, clientY: number) => {
+    const d = dragRef.current;
+    if (!d) return;
+    const next = clampOffset(d.baseX + (clientX - d.startX), d.baseY + (clientY - d.startY));
+    setOffset(next);
+  };
+  const endDrag = () => {
+    dragRef.current = null;
+    setDragging(false);
   };
 
   return (
@@ -174,62 +224,65 @@ export default function ProductGallery({
       <div className="flex-1 min-w-0">
         <div
           ref={stageRef}
-          // ── Desktop: hover-driven zoom ────────────────────────────────
-          onMouseEnter={(e) => {
-            setZoom(true);
-            updatePos(e.clientX, e.clientY);
+          // Drag-to-pan — only wires up when zoomed in; at 1x the stage is
+          // inert so clicks on the + button and surrounding UI behave
+          // normally. touchAction:'none' prevents the browser from
+          // hijacking vertical drags as a page scroll.
+          onMouseDown={(e) => {
+            if (!isZoomed) return;
+            e.preventDefault();
+            beginDrag(e.clientX, e.clientY);
           }}
-          onMouseMove={(e) => updatePos(e.clientX, e.clientY)}
-          onMouseLeave={() => setZoom(false)}
-          // ── Touch: press-and-pan zoom ─────────────────────────────────
-          // touchAction:'none' on the element prevents the browser from
-          // turning these gestures into a page scroll. preventDefault on
-          // touchmove keeps it that way mid-drag.
+          onMouseMove={(e) => moveDrag(e.clientX, e.clientY)}
+          onMouseUp={endDrag}
+          onMouseLeave={endDrag}
           onTouchStart={(e) => {
             const t = e.touches[0];
             if (!t) return;
-            setZoom(true);
-            updatePos(t.clientX, t.clientY);
+            beginDrag(t.clientX, t.clientY);
           }}
           onTouchMove={(e) => {
             const t = e.touches[0];
             if (!t) return;
-            updatePos(t.clientX, t.clientY);
+            moveDrag(t.clientX, t.clientY);
           }}
-          onTouchEnd={() => setZoom(false)}
-          onTouchCancel={() => setZoom(false)}
-          style={{ touchAction: 'none' }}
-          className="relative aspect-[4/5] overflow-hidden bg-gray-100 cursor-zoom-in select-none"
+          onTouchEnd={endDrag}
+          onTouchCancel={endDrag}
+          style={{ touchAction: isZoomed ? 'none' : 'auto' }}
+          className={`relative aspect-[4/5] overflow-hidden bg-gray-100 select-none ${
+            isZoomed ? (dragging ? 'cursor-grabbing' : 'cursor-grab') : 'cursor-default'
+          }`}
         >
-          <Image
-            src={main}
-            alt={alt}
-            fill
-            priority
-            fetchPriority="high"
-            sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 600px"
-            placeholder="blur"
-            blurDataURL={PRODUCT_BLUR_DATA_URL}
-            className="object-cover"
-            style={{ opacity: zoom ? 0 : 1, transition: 'opacity 150ms' }}
-          />
-          {/* Zoom layer — same image, scaled, anchored to cursor */}
+          {/* Zoom + pan wrapper. CSS transform keeps the Image component
+              itself intact (next/image still manages the responsive srcset)
+              while we move/scale a wrapper around it. transition is off
+              during an active drag so panning feels 1:1 with the pointer. */}
           <div
-            className="absolute inset-0 pointer-events-none"
+            className="absolute inset-0"
             style={{
-              backgroundImage: `url(${main})`,
-              backgroundSize: '200%',
-              backgroundPosition: `${pos.x}% ${pos.y}%`,
-              backgroundRepeat: 'no-repeat',
-              opacity: zoom ? 1 : 0,
-              transition: 'opacity 150ms',
+              transform: `translate(${offset.x}px, ${offset.y}px) scale(${zoomLevel})`,
+              transformOrigin: 'center center',
+              transition: dragging ? 'none' : 'transform 200ms ease-out',
+              willChange: 'transform',
             }}
-          />
+          >
+            <Image
+              src={main}
+              alt={alt}
+              fill
+              priority
+              fetchPriority="high"
+              sizes="(max-width: 768px) 100vw, (max-width: 1280px) 50vw, 600px"
+              placeholder="blur"
+              blurDataURL={PRODUCT_BLUR_DATA_URL}
+              className="object-cover pointer-events-none"
+              draggable={false}
+            />
+          </div>
+
           {/* Brand watermark — subtle T+V monogram in the lower-right corner.
-              Stays visible in both the static and the zoomed view so the
-              brand mark is present on any screenshot of the hero shot.
-              Cream monogram + multiply blend reads softly on both dark and
-              light photography without ever competing with the saree. */}
+              Sits outside the zoom wrapper so it stays pinned at a fixed
+              screen size and position regardless of zoom level. */}
           <img
             src="/brand/logomark-cream.svg"
             alt=""
@@ -237,18 +290,47 @@ export default function ProductGallery({
             className="absolute bottom-4 right-4 w-12 h-12 md:w-14 md:h-14 pointer-events-none select-none"
             style={{ opacity: 0.32, mixBlendMode: 'overlay' }}
           />
-          {/* Zoom-hint pill — bottom centre. Hides while zoomed so it
-              doesn't sit on top of detail the user is trying to inspect.
-              Copy works for both pointer types: hover on desktop, press
-              and drag on touch (pointer events handle both). */}
-          {!zoom && (
-            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/70 text-white text-xs px-3 py-1.5 rounded-full flex items-center gap-1.5 pointer-events-none">
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+
+          {/* Manual zoom controls — top-right. Solid white pills with a
+              ring + drop-shadow so they read on both dark saree
+              photography and light flat-lays. Buttons are disabled at the
+              ends of the range so screen readers announce the limit. */}
+          <div className="absolute top-3 right-3 z-10 flex flex-col gap-2">
+            <button
+              type="button"
+              onClick={zoomIn}
+              disabled={zoomIdx === ZOOM_STEPS.length - 1}
+              aria-label="Zoom in"
+              title="Zoom in"
+              className="w-11 h-11 flex items-center justify-center rounded-full bg-white text-[#75001F] ring-1 ring-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:bg-[#75001F] hover:text-white hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#75001F] disabled:hover:scale-100 transition-all"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                 <circle cx="11" cy="11" r="7" />
                 <path d="m20 20-3.5-3.5" />
                 <path d="M11 8v6M8 11h6" />
               </svg>
-              Hover or tap to zoom
+            </button>
+            <button
+              type="button"
+              onClick={zoomOut}
+              disabled={zoomIdx === 0}
+              aria-label="Zoom out"
+              title="Zoom out"
+              className="w-11 h-11 flex items-center justify-center rounded-full bg-white text-[#75001F] ring-1 ring-black/10 shadow-[0_2px_8px_rgba(0,0,0,0.25)] hover:bg-[#75001F] hover:text-white hover:scale-105 active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-white disabled:hover:text-[#75001F] disabled:hover:scale-100 transition-all"
+            >
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.25" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                <circle cx="11" cy="11" r="7" />
+                <path d="m20 20-3.5-3.5" />
+                <path d="M8 11h6" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Zoom level indicator — appears only when zoomed, bottom
+              centre. Doubles as a hint that the user can drag to pan. */}
+          {isZoomed && (
+            <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-10 bg-black/80 text-white text-xs font-medium px-3.5 py-2 rounded-full shadow-md pointer-events-none">
+              {zoomLevel}× · drag to pan
             </div>
           )}
         </div>
