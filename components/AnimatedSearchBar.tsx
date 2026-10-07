@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react';
+import type { ReadonlyURLSearchParams } from 'next/navigation';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -41,10 +42,30 @@ const HOLD_MS = 1400;
 // "See all results" footer carries the user through to the shop view.
 const MAX_SUGGESTIONS = 6;
 
+// Any component that calls useSearchParams() must sit inside a <Suspense>
+// boundary in the App Router, otherwise statically-prerendered pages
+// (e.g. /shop/[id] built via generateStaticParams) fail with
+// "useSearchParams() should be wrapped in a suspense boundary". The
+// upstream Nav wraps itself in Suspense but its fallback re-renders
+// NavInner — which renders this component — so without a boundary HERE
+// the fallback hits the same error. We wrap the real useSearchParams
+// call in its own child so the prerender has somewhere to bail out to.
 export default function AnimatedSearchBar() {
+  return (
+    <Suspense fallback={<AnimatedSearchBarInner searchParams={null} />}>
+      <AnimatedSearchBarWithParams />
+    </Suspense>
+  );
+}
+
+function AnimatedSearchBarWithParams() {
+  const searchParams = useSearchParams();
+  return <AnimatedSearchBarInner searchParams={searchParams} />;
+}
+
+function AnimatedSearchBarInner({ searchParams }: { searchParams: ReadonlyURLSearchParams | null }) {
   const router = useRouter();
   const pathname = usePathname();
-  const searchParams = useSearchParams();
   const [value, setValue] = useState('');
   const [focused, setFocused] = useState(false);
   const [placeholder, setPlaceholder] = useState('');
@@ -262,7 +283,7 @@ export default function AnimatedSearchBar() {
               // If a shop results URL carries ?q=, strip it (keeping any
               // other filters like weave / tier intact) so the chip + the
               // query-driven product filter both clear in one gesture.
-              if (pathname === '/shop' && searchParams?.get('q')) {
+              if (pathname === '/shop' && searchParams && searchParams.get('q')) {
                 const params = new URLSearchParams(searchParams.toString());
                 params.delete('q');
                 const qs = params.toString();
