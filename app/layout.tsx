@@ -4,6 +4,7 @@ import SmoothScroll from '@/components/SmoothScroll';
 import AudioProvider from '@/components/AudioProvider';
 import SiteShell from '@/components/SiteShell';
 import Toaster from '@/components/shop/Toaster';
+import StockLimitDialog from '@/components/shop/StockLimitDialog';
 import { ShopProvider } from '@/lib/shop-store';
 import { AuthProvider } from '@/lib/auth';
 import './globals.css';
@@ -86,6 +87,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               </SmoothScroll>
             </AudioProvider>
             <Toaster />
+            <StockLimitDialog />
           </AuthProvider>
         </ShopProvider>
       </body>

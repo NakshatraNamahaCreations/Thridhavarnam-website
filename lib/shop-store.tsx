@@ -29,6 +29,14 @@ export type Toast = {
   message: string;
 };
 
+// Full-screen "Only N left in stock" popup shown when the shopper tries to
+// bump quantity past the stock cap. More prominent than a corner toast so
+// an accidental over-click doesn't go unnoticed.
+export type StockLimitAlert = {
+  productId: string;
+  maxQty: number;
+};
+
 type ShopState = {
   cart: CartItem[];
   wishlist: string[];
@@ -61,6 +69,10 @@ type ShopContextValue = ShopState & {
   // Toasts
   toasts: Toast[];
   dismissToast: (id: number) => void;
+
+  // Stock-limit popup (modal)
+  stockLimitAlert: StockLimitAlert | null;
+  dismissStockLimit: () => void;
 };
 
 const STORAGE_KEY = 'tridhavarnam-shop-v1';
@@ -88,6 +100,7 @@ export function ShopProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<ShopState>({ cart: [], wishlist: [] });
   const [hydrated, setHydrated] = useState(false);
   const [toasts, setToasts] = useState<Toast[]>([]);
+  const [stockLimitAlert, setStockLimitAlert] = useState<StockLimitAlert | null>(null);
   const [backendCatalog, setBackendCatalog] = useState<Saree[]>([]);
 
   // Hydrate from storage on mount
@@ -150,6 +163,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
     setToasts((t) => t.filter((x) => x.id !== id));
   }, []);
 
+  const dismissStockLimit = useCallback(() => setStockLimitAlert(null), []);
+
   const productName = (id: string) => getProduct(id)?.name ?? 'Saree';
 
   // ── Cart ─────────────────────────────────────────────────────────────
@@ -178,11 +193,9 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       const finalQty = Math.min(currentQty + qty, maxQty);
 
       if (finalQty === currentQty) {
-        pushToast({
-          kind: 'cart-limit',
-          productId,
-          message: `Only ${maxQty} in stock — already in your bag`,
-        });
+        // Already at or above the stock cap — raise the popup instead of
+        // a toast so the shopper can't miss the message.
+        setStockLimitAlert({ productId, maxQty });
         return;
       }
 
@@ -244,14 +257,12 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       });
 
       if (hitCap) {
-        pushToast({
-          kind: 'cart-limit',
-          productId,
-          message: `Only ${maxQty} in stock`,
-        });
+        // Shopper clicked "+" past the stock cap in the bag — show the
+        // modal so the limit is unambiguous rather than a corner toast.
+        setStockLimitAlert({ productId, maxQty });
       }
     },
-    [getProduct, pushToast],
+    [getProduct],
   );
 
   const inCart = useCallback(
@@ -346,6 +357,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       clearWishlist,
       toasts,
       dismissToast,
+      stockLimitAlert,
+      dismissStockLimit,
     }),
     [
       state,
@@ -364,6 +377,8 @@ export function ShopProvider({ children }: { children: ReactNode }) {
       clearWishlist,
       toasts,
       dismissToast,
+      stockLimitAlert,
+      dismissStockLimit,
     ],
   );
 

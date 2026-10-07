@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import Image from 'next/image';
 import Link from 'next/link';
 import { productsApi, storefrontInitApi, backendToSaree } from '@/lib/api';
@@ -43,6 +43,8 @@ const MAX_SUGGESTIONS = 6;
 
 export default function AnimatedSearchBar() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [value, setValue] = useState('');
   const [focused, setFocused] = useState(false);
   const [placeholder, setPlaceholder] = useState('');
@@ -241,8 +243,40 @@ export default function AnimatedSearchBar() {
           aria-label="Search sarees"
           aria-autocomplete="list"
           aria-expanded={dropdownOpen}
-          className="flex-1 min-w-0 bg-transparent pl-4 pr-3 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
+          className="flex-1 min-w-0 bg-transparent pl-4 pr-2 py-3 text-sm text-gray-900 placeholder:text-gray-500 focus:outline-none"
         />
+        {(value.length > 0 || (pathname === '/shop' && searchParams?.get('q'))) && (
+          // Clear button — appears when the input has a value OR we're on a
+          // shop results page filtered by ?q=…. Clears the local input and
+          // also strips the q param from the URL so the "Search: …" filter
+          // chip disappears and the full catalogue returns. Prevent
+          // mousedown blur so the input keeps focus after the click.
+          <button
+            type="button"
+            aria-label="Clear search"
+            title="Clear search"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => {
+              setValue('');
+              setOpen(false);
+              // If a shop results URL carries ?q=, strip it (keeping any
+              // other filters like weave / tier intact) so the chip + the
+              // query-driven product filter both clear in one gesture.
+              if (pathname === '/shop' && searchParams?.get('q')) {
+                const params = new URLSearchParams(searchParams.toString());
+                params.delete('q');
+                const qs = params.toString();
+                router.replace(qs ? `/shop?${qs}` : '/shop');
+              }
+              inputRef.current?.focus();
+            }}
+            className="shrink-0 w-9 flex items-center justify-center text-gray-500 hover:text-gray-900 focus:outline-none"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M18 6 6 18M6 6l12 12" />
+            </svg>
+          </button>
+        )}
         <button
           type="submit"
           aria-label="Search"

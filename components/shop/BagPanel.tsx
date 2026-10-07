@@ -335,11 +335,14 @@ function QtyStepper({
       <button
         type="button"
         onClick={onPlus}
-        disabled={atCap}
         aria-label="Increase quantity"
         aria-disabled={atCap}
         title={atCap ? `Only ${max} in stock` : undefined}
-        className="w-8 h-8 flex items-center justify-center text-ink hover:bg-maroon-deep hover:text-ivory transition-colors text-base disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:bg-transparent disabled:hover:text-ink"
+        className={`w-8 h-8 flex items-center justify-center text-ink transition-colors text-base ${
+          atCap
+            ? 'opacity-60 cursor-not-allowed hover:bg-transparent hover:text-ink'
+            : 'hover:bg-maroon-deep hover:text-ivory'
+        }`}
       >
         +
       </button>
