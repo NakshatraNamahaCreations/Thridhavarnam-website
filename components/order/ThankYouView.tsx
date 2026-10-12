@@ -3,7 +3,9 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
-import { useOrders, type PayMethod, type ShipMethod } from '@/lib/orders';
+import { useEffect, useState } from 'react';
+import { useOrders, type Order, type PayMethod, type ShipMethod } from '@/lib/orders';
+import { storefrontOrdersApi, type OrderTrackingResponse } from '@/lib/api';
 import { formatINR, productSlug } from '@/lib/sarees';
 
 const PAY_LABEL: Record<PayMethod, string> = {
@@ -112,7 +114,7 @@ export default function ThankYouView() {
 
       <div className="max-w-[1100px] mx-auto px-6 lg:px-10 py-6 lg:py-8 space-y-6">
         {/* Status tracker — horizontal, current step highlighted */}
-        <StatusTracker eta={eta} />
+        <StatusTracker order={order} orderId={id} fallbackShip={fallbackShip} />
 
         {/* Items + summary side by side on desktop */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_320px] gap-6">
@@ -325,24 +327,146 @@ function SummaryRow({
   );
 }
 
-// Horizontal 5-step delivery tracker. "Confirmed" is the only step we
-// actually mark as done — the rest are forecast.
-function StatusTracker({ eta }: { eta: string }) {
-  const steps: { label: string; sub?: string }[] = [
-    { label: 'Confirmed', sub: 'Just now' },
-    { label: 'Packed' },
-    { label: 'Shipped' },
-    { label: 'Out for delivery' },
-    { label: 'Delivered', sub: `by ${eta}` },
-  ];
-  const currentIndex = 0; // only "Confirmed" is done
+// Hour offsets from createdAt for each pipeline step. Standard = 7-day
+// window, Express = 3-day window. The last entry equals the delivery ETA.
+const STEP_HOURS: Record<ShipMethod, [number, number, number, number, number]> = {
+  standard: [0, 24, 48, 144, 168],
+  express: [0, 12, 24, 60, 72],
+};
+
+function formatStepDate(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-IN', {
+    day: 'numeric',
+    month: 'short',
+  });
+}
+
+function formatRelative(fromMs: number, toMs: number): string {
+  const diffMin = Math.round((toMs - fromMs) / 60000);
+  if (Math.abs(diffMin) < 60) return 'Just now';
+  const diffHr = Math.round(diffMin / 60);
+  if (Math.abs(diffHr) < 24) return `${diffHr}h ago`;
+  const diffDay = Math.round(diffHr / 24);
+  return `${diffDay}d ago`;
+}
+
+// Horizontal 5-step delivery tracker. Primary source of truth is the
+// Shiprocket tracking status fetched from the backend; if that hasn't
+// been assigned an AWB yet (or the call fails), we fall back to a
+// time-based estimate against the shipMethod milestones so the dot
+// still moves forward instead of parking on "Confirmed" forever.
+function StatusTracker({
+  order,
+  orderId,
+  fallbackShip,
+}: {
+  order: Order | undefined;
+  orderId: string;
+  fallbackShip: ShipMethod;
+}) {
+  const [now, setNow] = useState<number>(() => Date.now());
+  const [tracking, setTracking] = useState<OrderTrackingResponse | null>(null);
+
+  // Clock tick for the time-based fallback. Also drives the hydration
+  // boundary — SSR renders with a frozen `now` and the useEffect kicks
+  // it off on mount.
+  useEffect(() => {
+    setNow(Date.now());
+    const t = setInterval(() => setNow(Date.now()), 60_000);
+    return () => clearInterval(t);
+  }, []);
+
+  // Poll the Shiprocket-backed tracking endpoint. Guard against stale
+  // state updates if the component unmounts mid-fetch (common when
+  // users bounce between orders quickly).
+  useEffect(() => {
+    if (!orderId) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const data = await storefrontOrdersApi.track(orderId);
+        if (!cancelled) setTracking(data);
+      } catch (err) {
+        // Non-fatal — the UI already has a sensible time-based fallback.
+        console.warn('[tracking] fetch failed', err);
+      }
+    };
+
+    void poll();
+    const interval = setInterval(poll, 60_000);
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
+  }, [orderId]);
+
+  const shipMethod: ShipMethod =
+    (tracking?.shipMethod as ShipMethod | undefined) ?? order?.shipMethod ?? fallbackShip;
+  const createdAtMs = order?.createdAt
+    ?? (tracking?.createdAt ? new Date(tracking.createdAt).getTime() : now);
+  const milestones = STEP_HOURS[shipMethod];
+
+  // Decide which source drives the step index.
+  const trackingReady = tracking?.ok === true;
+  const hasAwb = !!tracking?.shiprocket?.awbCode;
+  // Shiprocket is authoritative when we have a tracking response AND
+  // (there's an AWB OR the order is cancelled). Otherwise fall back to
+  // the time-based estimate so the dot doesn't sit on step 0 for the
+  // minutes between order placement and AWB assignment.
+  const cancelled =
+    tracking?.orderStatus === 'cancelled' ||
+    tracking?.step === -1 ||
+    order?.status === 'cancelled';
+
+  let currentIndex = 0;
+  let source: 'shiprocket' | 'estimate' = 'estimate';
+  if (cancelled) {
+    currentIndex = 0;
+  } else if (trackingReady && hasAwb && typeof tracking?.step === 'number' && tracking.step >= 0) {
+    currentIndex = Math.min(4, tracking.step);
+    source = 'shiprocket';
+  } else {
+    const elapsedHours = (now - createdAtMs) / 3_600_000;
+    for (let i = 0; i < milestones.length; i++) {
+      if (elapsedHours >= milestones[i]) currentIndex = i;
+    }
+  }
+
+  const labels = ['Confirmed', 'Packed', 'Shipped', 'Out for delivery', 'Delivered'];
+  const steps = labels.map((label, i) => {
+    const stepMs = createdAtMs + milestones[i] * 3_600_000;
+    let sub: string | undefined;
+    if (cancelled) {
+      sub = i === 0 ? 'Cancelled' : undefined;
+    } else if (i < currentIndex) {
+      sub = source === 'shiprocket' ? 'Done' : formatRelative(stepMs, now);
+    } else if (i === currentIndex) {
+      // Guard against bare numeric statuses from legacy cached
+      // Shiprocket responses — "8" would render as a meaningless digit
+      // under the active dot.
+      const raw = (tracking?.currentStatus || '').trim();
+      const isNumericCode = /^\d+$/.test(raw);
+      if (source === 'shiprocket' && raw && !isNumericCode) {
+        sub = raw;
+      } else {
+        sub = i === 0 ? 'Just now' : 'In progress';
+      }
+    } else {
+      sub = i === labels.length - 1 ? `by ${formatStepDate(stepMs)}` : formatStepDate(stepMs);
+    }
+    return { label, sub };
+  });
+
+  const courier = tracking?.courier || tracking?.shiprocket?.courier || '';
+  const awb = tracking?.shiprocket?.awbCode || '';
 
   return (
-    <div className="border border-ink/15 px-4 py-4 lg:px-6">
+    <div className="border border-ink/15 px-4 py-4 lg:px-6 space-y-3">
       <div className="flex items-center justify-between gap-2">
         {steps.map((s, i) => {
-          const done = i <= currentIndex;
-          const active = i === currentIndex;
+          const done = !cancelled && i <= currentIndex;
+          const active = !cancelled && i === currentIndex;
           return (
             <div key={s.label} className="flex-1 flex flex-col items-center text-center min-w-0">
               <div className="flex items-center w-full">
@@ -353,7 +477,9 @@ function StatusTracker({ eta }: { eta: string }) {
                 {/* Dot */}
                 <div
                   className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center mx-1 ${
-                    done
+                    cancelled && i === 0
+                      ? 'border-maroon bg-maroon text-ivory'
+                      : done
                       ? 'border-peacock bg-peacock text-ivory'
                       : 'border-ink/20 bg-white text-ink/40'
                   }`}
@@ -361,6 +487,10 @@ function StatusTracker({ eta }: { eta: string }) {
                   {done ? (
                     <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                       <path d="M4 12 10 18 20 6" />
+                    </svg>
+                  ) : cancelled && i === 0 ? (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" aria-hidden>
+                      <path d="M6 6l12 12M18 6 6 18" />
                     </svg>
                   ) : (
                     <span className="text-[10px] font-bold tabular-nums">{i + 1}</span>
@@ -385,6 +515,24 @@ function StatusTracker({ eta }: { eta: string }) {
           );
         })}
       </div>
+
+      {/* Courier / AWB strip — shown as soon as Shiprocket has assigned
+          an AWB. Until then we hide it to avoid an empty row flashing on
+          page load. */}
+      {(courier || awb) && !cancelled && (
+        <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-ink/10 text-[11px] text-ink/70">
+          <span>
+            {courier && <span className="font-semibold text-ink">{courier}</span>}
+            {courier && awb && <span className="text-ink/40 mx-1.5">·</span>}
+            {awb && (
+              <span className="tabular-nums">
+                AWB <span className="font-mono text-ink">{awb}</span>
+              </span>
+            )}
+          </span>
+          <span className="text-ink/50">Updated just now</span>
+        </div>
+      )}
     </div>
   );
 }

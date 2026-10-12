@@ -155,24 +155,68 @@ export default function AddressModal() {
         const json = await res.json();
         if (cancelled) return;
         const entry = Array.isArray(json) ? json[0] : null;
-        if (entry?.Status === 'Success' && entry?.PostOffice?.length) {
-          const po = entry.PostOffice[0];
-          const city = String(po.District ?? '').trim();
-          const state = String(po.State ?? '').trim();
-          if (!city || !state) {
-            setPin({ kind: 'notfound' });
-            return;
-          }
-          setPin({ kind: 'ok', city, state });
-          setDraft((d) => {
-            if (d.pincode.trim() !== code) return d;
-            return {
-              ...d,
-              city: d.city.trim() ? d.city : city,
-              state: d.state.trim() ? d.state : state,
-            };
-          });
-        } else {
+//         if (entry?.Status === 'Success' && entry?.PostOffice?.length) {
+//           const po = entry.PostOffice[0];
+//           // const city = String(po.District ?? '').trim();
+//           // const state = String(po.State ?? '').trim();
+//           const district = String(po.District ?? '').trim();
+// const state = String(po.State ?? '').trim();
+// const city = String(po.Block ?? po.Name ?? district).trim();
+//           if (!city || !state) {
+//             setPin({ kind: 'notfound' });
+//             return;
+//           }
+//           setPin({ kind: 'ok', city, state });
+//           setDraft((d) => {
+//             if (d.pincode.trim() !== code) return d;
+//             return {
+//               ...d,
+//               city: d.city.trim() ? d.city : city,
+//               state: d.state.trim() ? d.state : state,
+//             };
+//           });
+//         } 
+if (entry?.Status === 'Success' && entry?.PostOffice?.length) {
+  const postOffices = entry.PostOffice;
+
+  console.log('All Post Office Entries:', postOffices);
+
+  console.table(
+    postOffices.map((po: any) => ({
+      Name: po.Name,
+      District: po.District,
+      Block: po.Block,
+      State: po.State,
+      Pincode: po.Pincode,
+    }))
+  );
+
+  // Collect all possible city/locality names
+  const cityNames = postOffices.flatMap((po: any) =>
+    [po.Name, po.Block, po.District]
+      .filter(Boolean)
+      .map((name: string) => name.trim())
+  );
+
+  const state = String(postOffices[0].State ?? '').trim();
+
+  setPin({
+    kind: 'ok',
+    city: cityNames.join('|'),
+    state,
+  });
+
+  setDraft((d) => {
+    if (d.pincode.trim() !== code) return d;
+
+    return {
+      ...d,
+      city: d.city.trim() ? d.city : String(postOffices[0].Name ?? ''),
+      state: d.state.trim() ? d.state : state,
+    };
+  });
+}
+        else {
           setPin({ kind: 'notfound' });
         }
       } catch {
@@ -687,13 +731,20 @@ function PinHint({
   // pin.kind === 'ok' — compare against what the user typed.
   const cityOk = !userCity.trim() || matchesCity(userCity, pin.city);
   const stateOk = !userState.trim() || matchesState(userState, pin.state);
+  // if (cityOk && stateOk) {
+  //   return (
+  //     <p className="mt-1 text-[10px] text-peacock font-medium">
+  //       ✓ {pin.city}, {pin.state}
+  //     </p>
+  //   );
+  // }
   if (cityOk && stateOk) {
-    return (
-      <p className="mt-1 text-[10px] text-peacock font-medium">
-        ✓ {pin.city}, {pin.state}
-      </p>
-    );
-  }
+  return (
+    <p className="mt-1 text-[10px] text-peacock font-medium whitespace-nowrap">
+      ✓ Pincode verified
+    </p>
+  );
+}                                                                                                                                                                                                                                               
   return (
     <div className="mt-1 text-[10px] text-maroon font-medium leading-snug">
       <p>⚠ Pincode is for {pin.city}, {pin.state}</p>

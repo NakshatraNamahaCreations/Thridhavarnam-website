@@ -473,12 +473,50 @@ export type StorefrontOrderResponse = {
   } | null;
 };
 
+// Shape returned by GET /storefront/orders/:id/tracking. `step` is the
+// 5-step tracker index (0=Confirmed … 4=Delivered, -1=Cancelled). `ok`
+// is false only when the order id isn't recognised; a successful
+// response with no Shiprocket activity yet still returns ok=true,
+// step=0 so the storefront can fall back to its time-based estimate.
+export type OrderTrackingResponse = {
+  ok: boolean;
+  reason?: string;
+  orderId: string;
+  createdAt?: string;
+  shipMethod?: 'standard' | 'express';
+  orderStatus?: string;
+  step: number;
+  currentStatus: string;
+  etd?: string;
+  courier?: string;
+  shiprocket?: {
+    orderId: string;
+    shipmentId: string;
+    awbCode: string;
+    courier: string;
+    status: string;
+    error: string;
+  };
+  activities?: {
+    date: string;
+    status: string;
+    activity: string;
+    location: string;
+  }[];
+  upstreamError?: string;
+};
+
 export const storefrontOrdersApi = {
   place: (payload: StorefrontOrderPayload) =>
     request<StorefrontOrderResponse>('/storefront/orders', {
       method: 'POST',
       body: payload,
     }),
+  track: (id: string) =>
+    request<OrderTrackingResponse>(
+      `/storefront/orders/${encodeURIComponent(id)}/tracking`,
+      { revalidate: 0 },
+    ),
 };
 
 export const authApi = {

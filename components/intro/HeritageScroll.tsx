@@ -84,7 +84,13 @@ export default function HeritageScroll() {
     };
   }, []);
 
-  const CATEGORIES: Category[] = fetchedCategories;
+  // Stories without a hero image would crash <Image> with `src=""` and
+  // surface as the generic "Application error" overlay in production,
+  // so they're filtered out until an admin uploads an image. Capped at
+  // ROMAN.length (5) because the apex numeral is indexed by tile order.
+  const CATEGORIES: Category[] = fetchedCategories
+    .filter((c) => c.image)
+    .slice(0, ROMAN.length);
 
   // Section reveal — runs once when the welcome gate unlocks. Header lifts
   // first, then the tiles fade up in sequence.
