@@ -441,6 +441,10 @@ export type StorefrontOrderPayload = {
     sku?: string;
     qty: number;
     unitPrice: number;
+    // Captured at checkout so the "My orders" list can render the
+    // thumbnail + weave label without rehydrating from the products API.
+    weave?: string;
+    image?: string;
   }[];
   itemCount: number;
   payMethod: 'upi' | 'card' | 'netbanking';
@@ -506,6 +510,66 @@ export type OrderTrackingResponse = {
   upstreamError?: string;
 };
 
+// Shape returned by GET /storefront/orders — serialized to match the
+// in-browser Order type so the orders context can drop it straight in.
+export type StorefrontOrderRecord = {
+  id: string;
+  createdAt: number;
+  status: 'placed' | 'cancelled';
+  cancelledAt?: number;
+  items: {
+    productId: string;
+    name: string;
+    weave: string;
+    qty: number;
+    unitPrice: number;
+    image: string;
+  }[];
+  itemCount: number;
+  address: {
+    fullName: string;
+    phone: string;
+    email: string;
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    pincode: string;
+    country: string;
+  };
+  payMethod: 'upi' | 'card' | 'netbanking';
+  shipMethod: 'standard' | 'express';
+  paid: boolean;
+  promoCode: string | null;
+  subtotal: number;
+  discount: number;
+  shippingFee: number;
+  tax: number;
+  total: number;
+  shiprocket?: {
+    orderId: string;
+    shipmentId: string;
+    awbCode: string;
+    courier: string;
+    status: string;
+  };
+};
+
+// Batched tracking response for the account/orders list. Mirrors the
+// per-order OrderTrackingResponse shape but trimmed to what the list
+// badge needs.
+export type OrderTrackingMap = Record<
+  string,
+  {
+    step: number;
+    currentStatus: string;
+    courier?: string;
+    awbCode?: string;
+    source?: 'shiprocket' | 'internal';
+    cancelled?: boolean;
+  }
+>;
+
 export const storefrontOrdersApi = {
   place: (payload: StorefrontOrderPayload) =>
     request<StorefrontOrderResponse>('/storefront/orders', {
@@ -517,6 +581,32 @@ export const storefrontOrdersApi = {
       `/storefront/orders/${encodeURIComponent(id)}/tracking`,
       { revalidate: 0 },
     ),
+  // Fetch the signed-in customer's orders. Email is required — there's
+  // no server-side storefront session, so this is the key the client
+  // has after login.
+  list: (email: string, phone?: string) => {
+    const qs = new URLSearchParams({ email })
+    if (phone) qs.set('phone', phone);
+    return request<{ orders: StorefrontOrderRecord[] }>(
+      `/storefront/orders?${qs.toString()}`,
+      { revalidate: 0 },
+    );
+  },
+  // Cancel a storefront order. The email is a lightweight ownership
+  // check — the backend 404s if it doesn't match the stored email.
+  cancel: (id: string, email: string) =>
+    request<{ ok: boolean; order: StorefrontOrderRecord }>(
+      `/storefront/orders/${encodeURIComponent(id)}/cancel`,
+      { method: 'POST', body: { email } },
+    ),
+  // Batched live Shiprocket statuses for a list of order ids.
+  trackingBatch: (ids: string[]) => {
+    const qs = ids.length ? `?ids=${ids.map(encodeURIComponent).join(',')}` : '';
+    return request<{ tracking: OrderTrackingMap }>(
+      `/storefront/orders/tracking${qs}`,
+      { revalidate: 0 },
+    );
+  },
 };
 
 export const authApi = {

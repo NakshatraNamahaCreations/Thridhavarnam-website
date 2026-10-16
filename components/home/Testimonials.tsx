@@ -99,17 +99,17 @@ export default function Testimonials() {
             <h2 className="font-display text-2xl md:text-3xl font-semibold text-ink">
               Top-rated by patrons
             </h2>
-            <div className="flex items-center gap-2 mt-2 text-sm text-ink/65">
+            {/* <div className="flex items-center gap-2 mt-2 text-sm text-ink/65">
               <Stars count={5} size={14} />
               <span><span className="font-bold text-ink">4.9</span> from 1,240+ reviews</span>
-            </div>
+            </div> */}
           </div>
-          <Link
+          {/* <Link
             href="/reviews"
             className="text-sm font-semibold text-ink hover:text-maroon transition-colors underline underline-offset-4"
           >
             All Reviews
-          </Link>
+          </Link> */}
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">

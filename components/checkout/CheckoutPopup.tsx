@@ -218,6 +218,8 @@ export default function CheckoutPopup() {
           sku: it.productId,
           qty: it.qty,
           unitPrice: it.unitPrice,
+          weave: it.weave,
+          image: it.image,
         })),
         itemCount: order.itemCount,
         payMethod: order.payMethod,
