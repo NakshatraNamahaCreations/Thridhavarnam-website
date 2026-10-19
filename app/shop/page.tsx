@@ -14,7 +14,7 @@ export const metadata: Metadata = {
  * A single URL handles every category state via search params:
  *   ?tier=bridal | festive | everyday          (comma-separated multi)
  *   ?weave=Banarasi | Kanjivaram | ...        (comma-separated multi)
- *   ?bracket=under-5k | 5-15k | ...           (single price band)
+ *   ?minPrice=5000&maxPrice=15000             (price range in rupees; either side optional)
  *   ?sale=1                                   (atelier sale)
  *   ?sort=price-asc | price-desc | name
  *   ?wishlist=1                               (wishlist mode)

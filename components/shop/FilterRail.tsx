@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { Tier, Weave } from '@/lib/sarees';
-import { storefrontInitApi } from '@/lib/api';
+import { storefrontInitApi, type BackendPriceBucket } from '@/lib/api';
 
 // Static fallback used only if the categoriesApi call fails or returns
 // nothing. Kept small so the rail isn't empty on the first render.
@@ -19,18 +19,24 @@ function humanizeWeaveLabel(raw: string): string {
   return parts.map((w) => (w ? w[0].toUpperCase() + w.slice(1).toLowerCase() : w)).join(' ');
 }
 
-const PRICE_BRACKETS: { id: string; label: string; min: number; max: number }[] = [
+// Fallback price options used only when the admin hasn't configured
+// any Shop by Price buckets yet. `max: 0` means "no upper bound".
+// The real list comes from the admin's buckets so a bucket change
+// (new label, new max price) flows through to this filter too.
+const FALLBACK_PRICE_BRACKETS: { id: string; label: string; min: number; max: number }[] = [
   { id: 'under-5k', label: 'Under ₹5,000', min: 0, max: 5000 },
   { id: '5-15k', label: '₹5,000 – ₹15,000', min: 5000, max: 15000 },
   { id: '15-30k', label: '₹15,000 – ₹30,000', min: 15000, max: 30000 },
   { id: '30-60k', label: '₹30,000 – ₹60,000', min: 30000, max: 60000 },
-  { id: 'above-60k', label: 'Above ₹60,000', min: 60000, max: Infinity },
+  { id: 'above-60k', label: 'Above ₹60,000', min: 60000, max: 0 },
 ];
 
 export type FilterState = {
   tiers: Tier[];
   weaves: Weave[];
-  bracket: string | null;
+  // Price range in rupees. 0 on either side means unbounded on that side.
+  minPrice: number;
+  maxPrice: number;
   sale: boolean;
   occasions: string[]; // backend occasion ids
   flags: string[]; // 'bestseller' | 'new_in'
@@ -38,7 +44,7 @@ export type FilterState = {
 };
 
 export const EMPTY_FILTERS: FilterState = {
-  tiers: [], weaves: [], bracket: null, sale: false, occasions: [], flags: [], q: '',
+  tiers: [], weaves: [], minPrice: 0, maxPrice: 0, sale: false, occasions: [], flags: [], q: '',
 };
 
 export const CATEGORY_FLAGS: { key: string; label: string }[] = [
@@ -101,7 +107,7 @@ function Radio({ label, checked, onChange }: { label: string; checked: boolean; 
 }
 
 export default function FilterRail({
-  filters, counts, occasions = [], onChange, onClear,
+  filters, counts, occasions = [], priceBuckets = [], onChange, onClear,
 }: {
   filters: FilterState;
   counts: {
@@ -112,12 +118,17 @@ export default function FilterRail({
     sale: number;
   };
   occasions?: OccasionOption[];
+  // Admin-managed "Shop by Price" buckets. When present they drive
+  // the Price radios so changes in the admin panel show up here
+  // without a code change.
+  priceBuckets?: BackendPriceBucket[];
   onChange: (next: FilterState) => void;
   onClear: () => void;
 }) {
+  const hasPriceFilter = filters.minPrice > 0 || filters.maxPrice > 0;
   const activeCount =
     filters.tiers.length + filters.weaves.length +
-    (filters.bracket ? 1 : 0) + (filters.sale ? 1 : 0) +
+    (hasPriceFilter ? 1 : 0) + (filters.sale ? 1 : 0) +
     filters.occasions.length + filters.flags.length;
 
   // Weave options come from the backend Categories taxonomy so adding /
@@ -141,13 +152,36 @@ export default function FilterRail({
   const weaveOptions =
     fetchedWeaves.length > 0 ? fetchedWeaves : FALLBACK_WEAVES;
 
+  // Build the price radio list from the admin's active buckets
+  // (sorted by `order`). Fall back to the static ranges if the
+  // admin hasn't configured any yet.
+  const priceOptions = useMemo(() => {
+    const active = priceBuckets.filter((b) => b.active !== false);
+    if (active.length === 0) return FALLBACK_PRICE_BRACKETS;
+    return active
+      .slice()
+      .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+      .map((b) => ({
+        id: b.id,
+        label: b.label ?? '',
+        min: b.minPrice ?? 0,
+        max: b.maxPrice ?? 0,
+      }));
+  }, [priceBuckets]);
+
   const toggleWeave = (w: Weave) => onChange({
     ...filters,
     weaves: filters.weaves.includes(w) ? filters.weaves.filter((x) => x !== w) : [...filters.weaves, w],
   });
-  const selectBracket = (id: string) => onChange({
-    ...filters, bracket: filters.bracket === id ? null : id,
-  });
+  const selectBracket = (min: number, max: number) => {
+    // Toggle off when the user clicks the already-selected radio.
+    const same = filters.minPrice === min && filters.maxPrice === max;
+    onChange({
+      ...filters,
+      minPrice: same ? 0 : min,
+      maxPrice: same ? 0 : max,
+    });
+  };
   const toggleOccasion = (id: string) => onChange({
     ...filters,
     occasions: filters.occasions.includes(id)
@@ -215,12 +249,12 @@ export default function FilterRail({
       )}
 
       <Section title="Price">
-        {PRICE_BRACKETS.map((b) => (
+        {priceOptions.map((b) => (
           <Radio
             key={b.id}
             label={b.label}
-            checked={filters.bracket === b.id}
-            onChange={() => selectBracket(b.id)}
+            checked={filters.minPrice === b.min && filters.maxPrice === b.max}
+            onChange={() => selectBracket(b.min, b.max)}
           />
         ))}
       </Section>
@@ -237,4 +271,3 @@ export default function FilterRail({
   );
 }
 
-export { PRICE_BRACKETS };

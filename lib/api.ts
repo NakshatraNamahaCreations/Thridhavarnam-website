@@ -9,7 +9,7 @@
 // the public GET routes we added locally, so it returns 401.
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  // 'http://localhost:5000/api';
+  // 'http://localhost:5001/api';
   // 'https://sareeebackend.onrender.com/api';
   'https://api.thridhavarnam.com/api';
 
@@ -342,6 +342,14 @@ export type BackendPriceBucket = {
   label?: string;
   subtitle?: string;
   image?: string;
+  // Price range the admin configured. 0 or missing on either side
+  // means unbounded on that side. The storefront builds the tile
+  // href + filter query from these.
+  minPrice?: number;
+  maxPrice?: number;
+  // Legacy free-text href left on buckets created before the
+  // min/max fields existed. Only read as a fallback when the admin
+  // hasn't filled in min/max yet.
   href?: string;
   startingPrice?: number;
   order?: number;

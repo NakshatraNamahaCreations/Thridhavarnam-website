@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { useRouter, usePathname, useSearchParams } from 'next/navigation';
 import {
   TIERS,
+  formatINR,
   type Saree,
 } from '@/lib/sarees';
 import type { Tier, Weave } from '@/lib/sarees';
@@ -14,11 +15,11 @@ import {
   storefrontInitApi,
   backendToSaree,
   type BackendOccasion,
+  type BackendPriceBucket,
 } from '@/lib/api';
 import ProductCard from './ProductCard';
 import FilterRail, {
   EMPTY_FILTERS,
-  PRICE_BRACKETS,
   CATEGORY_FLAGS,
   type FilterState,
 } from './FilterRail';
@@ -59,10 +60,22 @@ function weaveHeading(raw: string): string {
   return /sarees?$/i.test(nice) ? nice : `${nice} Sarees`;
 }
 
+// Legacy ?bracket=<id> → min/max map. Only consulted when the URL
+// has no explicit minPrice/maxPrice, so old bookmarks and
+// admin-created tiles that still carry a bracket id keep filtering.
+const LEGACY_BRACKETS: Record<string, { min: number; max: number }> = {
+  'under-5k': { min: 0, max: 5000 },
+  '5-15k': { min: 5000, max: 15000 },
+  '15-30k': { min: 15000, max: 30000 },
+  '30-60k': { min: 30000, max: 60000 },
+  'above-60k': { min: 60000, max: 0 },
+};
+
 function parseFiltersFromSearch(params: URLSearchParams): FilterState {
   const tierCsv = params.get('tier');
   const weaveCsv = params.get('weave');
-  const bracket = params.get('bracket');
+  const minPriceRaw = params.get('minPrice');
+  const maxPriceRaw = params.get('maxPrice');
   const sale = params.get('sale') === '1';
   const occasionCsv = params.get('occasion');
   const flagCsv = params.get('flag');
@@ -77,8 +90,20 @@ function parseFiltersFromSearch(params: URLSearchParams): FilterState {
   const occasions = occasionCsv ? occasionCsv.split(',').filter(Boolean) : [];
   const validFlags = new Set(CATEGORY_FLAGS.map((f) => f.key));
   const flags = flagCsv ? flagCsv.split(',').filter((f) => validFlags.has(f)) : [];
+  // 0 (or missing / invalid) means "unbounded on that side". Negative
+  // values are coerced to 0 so a stray ?minPrice=-1 can't mask the
+  // "no lower bound" semantics.
+  let minPrice = Math.max(0, Number(minPriceRaw) || 0);
+  let maxPrice = Math.max(0, Number(maxPriceRaw) || 0);
+  if (minPrice === 0 && maxPrice === 0) {
+    const legacy = params.get('bracket');
+    if (legacy && LEGACY_BRACKETS[legacy]) {
+      minPrice = LEGACY_BRACKETS[legacy].min;
+      maxPrice = LEGACY_BRACKETS[legacy].max;
+    }
+  }
 
-  return { tiers, weaves, bracket, sale, occasions, flags, q };
+  return { tiers, weaves, minPrice, maxPrice, sale, occasions, flags, q };
 }
 
 function writeFiltersToSearch(
@@ -90,13 +115,16 @@ function writeFiltersToSearch(
   else next.delete('tier');
   if (filters.weaves.length) next.set('weave', filters.weaves.join(','));
   else next.delete('weave');
-  if (filters.bracket) next.set('bracket', filters.bracket);
-  else next.delete('bracket');
+  if (filters.minPrice > 0) next.set('minPrice', String(filters.minPrice));
+  else next.delete('minPrice');
+  if (filters.maxPrice > 0) next.set('maxPrice', String(filters.maxPrice));
+  else next.delete('maxPrice');
   if (filters.sale) next.set('sale', '1');
   else next.delete('sale');
-  // `color` query param is intentionally dropped — old bookmarks that still
-  // carry it fall through harmlessly, and no new UI writes it.
+  // Legacy params we no longer honor — drop them so old bookmarks
+  // and stray links don't carry noise on the next URL write.
   next.delete('color');
+  next.delete('bracket');
   if (filters.occasions.length) next.set('occasion', filters.occasions.join(','));
   else next.delete('occasion');
   if (filters.flags.length) next.set('flag', filters.flags.join(','));
@@ -135,10 +163,12 @@ export default function ShopView() {
   // errors, which renders the empty state.
   const [catalog, setCatalog] = useState<Saree[] | null>(null);
   const [occasions, setOccasions] = useState<BackendOccasion[]>([]);
+  const [priceBuckets, setPriceBuckets] = useState<BackendPriceBucket[]>([]);
   useEffect(() => {
     let cancelled = false;
-    // Batch: products + storefront init (categories + occasions) in two
-    // parallel requests instead of the previous three separate ones.
+    // Batch: products + storefront init (categories, occasions, price
+    // buckets) in two parallel requests. Price buckets feed the Price
+    // filter rail so admin changes flow through without a code change.
     Promise.all([productsApi.list(), storefrontInitApi.get().catch(() => ({ categories: [], occasions: [], banners: [], priceBuckets: [], coupons: [] }))])
       .then(([rows, init]) => {
         if (cancelled) return;
@@ -148,6 +178,7 @@ export default function ShopView() {
         }
         setCatalog(rows.map((p) => backendToSaree(p, categoryMap)));
         setOccasions(init.occasions);
+        setPriceBuckets(init.priceBuckets);
       })
       .catch(() => {
         if (!cancelled) setCatalog([]);
@@ -214,13 +245,14 @@ export default function ShopView() {
     if (filters.weaves.length) {
       items = items.filter((s) => filters.weaves.includes(s.weave));
     }
-    if (filters.bracket) {
-      const bracket = PRICE_BRACKETS.find((b) => b.id === filters.bracket);
-      if (bracket) {
-        items = items.filter(
-          (s) => s.price >= bracket.min && s.price < bracket.max,
-        );
-      }
+    if (filters.minPrice > 0 || filters.maxPrice > 0) {
+      // Half-open range: >= min, < max — matches how the "Shop by
+      // price" tiles are labelled ("Under ₹5,000" means price < 5000).
+      items = items.filter((s) => {
+        if (filters.minPrice > 0 && s.price < filters.minPrice) return false;
+        if (filters.maxPrice > 0 && s.price >= filters.maxPrice) return false;
+        return true;
+      });
     }
     if (filters.sale) {
       items = items.filter(isOnSale);
@@ -271,7 +303,16 @@ export default function ShopView() {
       default:
         break;
     }
-    return items;
+
+    // Push out-of-stock sarees to the end of the grid regardless of
+    // the active sort — in-stock items stay first in their current
+    // order, OOS items keep their relative order among themselves.
+    // `stock === undefined` is treated as in-stock (static demo rows).
+    const isOOS = (s: Saree) => typeof s.stock === 'number' && s.stock <= 0;
+    const inStock: Saree[] = [];
+    const outOfStock: Saree[] = [];
+    for (const s of items) (isOOS(s) ? outOfStock : inStock).push(s);
+    return inStock.concat(outOfStock);
   }, [filters, sort, catalog]);
 
   // ── Pre-computed counts for the filter rail ───────────────────────────
@@ -315,11 +356,12 @@ export default function ShopView() {
 
   // SaleHero only on the default browse view — promoting the sale on top
   // of an already-filtered view (e.g. ?sale=1 or ?weave=Banarasi) is noise.
+  const hasPriceFilter = filters.minPrice > 0 || filters.maxPrice > 0;
   const isDefaultBrowse =
     mode === 'grid' &&
     !filters.tiers.length &&
     !filters.weaves.length &&
-    !filters.bracket &&
+    !hasPriceFilter &&
     !filters.sale &&
     !filters.occasions.length &&
     !filters.flags.length &&
@@ -330,11 +372,21 @@ export default function ShopView() {
   const hasActiveFilters =
     filters.tiers.length > 0 ||
     filters.weaves.length > 0 ||
-    !!filters.bracket ||
+    hasPriceFilter ||
     filters.sale ||
     filters.occasions.length > 0 ||
     filters.flags.length > 0 ||
     !!filters.q;
+
+  // Chip label for the active price range. "Under ₹X" when only max is
+  // set, "₹X and above" when only min, otherwise "₹X – ₹Y".
+  const priceChipLabel = (() => {
+    if (!hasPriceFilter) return '';
+    const { minPrice, maxPrice } = filters;
+    if (minPrice > 0 && maxPrice > 0) return `${formatINR(minPrice)} – ${formatINR(maxPrice)}`;
+    if (maxPrice > 0) return `Under ${formatINR(maxPrice)}`;
+    return `${formatINR(minPrice)} and above`;
+  })();
 
   // ──────────────────────────────────────────────────────────────────────
   if (mode === 'wishlist') return <WishlistPanel heading={heading} />;
@@ -350,7 +402,7 @@ export default function ShopView() {
           on "Sale" or multi-weave views where it would read as noise. */}
       {filters.weaves.length === 1 &&
         !filters.tiers.length &&
-        !filters.bracket &&
+        !hasPriceFilter &&
         !filters.sale && (
           <CategoryStory weave={filters.weaves[0]} />
         )}
@@ -397,10 +449,10 @@ export default function ShopView() {
                   onRemove={() => onFilterChange({ ...filters, weaves: filters.weaves.filter((x) => x !== w) })}
                 />
               ))}
-              {filters.bracket && (
+              {hasPriceFilter && (
                 <FilterChip
-                  label={PRICE_BRACKETS.find((b) => b.id === filters.bracket)?.label ?? 'Price'}
-                  onRemove={() => onFilterChange({ ...filters, bracket: null })}
+                  label={priceChipLabel}
+                  onRemove={() => onFilterChange({ ...filters, minPrice: 0, maxPrice: 0 })}
                 />
               )}
               {filters.sale && (
@@ -479,6 +531,7 @@ export default function ShopView() {
               filters={filters}
               counts={counts}
               occasions={occasions}
+              priceBuckets={priceBuckets}
               onChange={onFilterChange}
               onClear={onClearFilters}
             />
@@ -490,7 +543,7 @@ export default function ShopView() {
                 // "Coming Soon" panel fires only when the user is looking at
                 // a single weave with nothing else applied — i.e. they picked
                 // a category from the nav / rail and it has no products yet.
-                // Any other empty state (weave + colour + bracket, etc.) is
+                // Any other empty state (weave + price + occasion, etc.) is
                 // more likely an over-filtered view, so we keep the generic
                 // "adjust filters" copy for those cases.
                 const isSoloWeave =
@@ -498,7 +551,7 @@ export default function ShopView() {
                   filters.tiers.length === 0 &&
                   filters.occasions.length === 0 &&
                   filters.flags.length === 0 &&
-                  !filters.bracket &&
+                  !hasPriceFilter &&
                   !filters.sale &&
                   !filters.q;
                 if (isSoloWeave) {
@@ -590,6 +643,7 @@ export default function ShopView() {
               filters={filters}
               counts={counts}
               occasions={occasions}
+              priceBuckets={priceBuckets}
               onChange={onFilterChange}
               onClear={onClearFilters}
             />
