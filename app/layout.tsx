@@ -20,10 +20,10 @@ import './globals.css';
 // drop the matching .otf/.ttf back into public/fonts.
 const blackMango = localFont({
   src: [
-    { path: '../public/fonts/BlackMango-Regular.otf', weight: '400', style: 'normal' },
-    { path: '../public/fonts/BlackMango-Medium.otf', weight: '500', style: 'normal' },
-    { path: '../public/fonts/BlackMango-SemiBold.ttf', weight: '600', style: 'normal' },
-    { path: '../public/fonts/BlackMango-Bold.ttf', weight: '700', style: 'normal' },
+    { path: '../public/fonts/BlackMango-Regular.woff2', weight: '400', style: 'normal' },
+    { path: '../public/fonts/BlackMango-Medium.woff2', weight: '500', style: 'normal' },
+    { path: '../public/fonts/BlackMango-SemiBold.woff2', weight: '600', style: 'normal' },
+    { path: '../public/fonts/BlackMango-Bold.woff2', weight: '700', style: 'normal' },
   ],
   variable: '--font-display',
   display: 'swap',
@@ -37,10 +37,10 @@ const blackMango = localFont({
 // pipeline as Black Mango above.
 const sans = localFont({
   src: [
-    { path: '../public/fonts/PlusJakartaSans-Regular.ttf', weight: '400', style: 'normal' },
-    { path: '../public/fonts/PlusJakartaSans-Medium.ttf', weight: '500', style: 'normal' },
-    { path: '../public/fonts/PlusJakartaSans-SemiBold.ttf', weight: '600', style: 'normal' },
-    { path: '../public/fonts/PlusJakartaSans-Bold.ttf', weight: '700', style: 'normal' },
+    { path: '../public/fonts/PlusJakartaSans-Regular.woff2', weight: '400', style: 'normal' },
+    { path: '../public/fonts/PlusJakartaSans-Medium.woff2', weight: '500', style: 'normal' },
+    { path: '../public/fonts/PlusJakartaSans-SemiBold.woff2', weight: '600', style: 'normal' },
+    { path: '../public/fonts/PlusJakartaSans-Bold.woff2', weight: '700', style: 'normal' },
   ],
   variable: '--font-sans',
   display: 'swap',

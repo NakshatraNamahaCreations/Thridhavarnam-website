@@ -134,7 +134,17 @@ function writeFiltersToSearch(
   return next;
 }
 
-export default function ShopView() {
+type ShopViewProps = {
+  initialCatalog?: Saree[];
+  initialOccasions?: BackendOccasion[];
+  initialPriceBuckets?: BackendPriceBucket[];
+};
+
+export default function ShopView({
+  initialCatalog,
+  initialOccasions,
+  initialPriceBuckets,
+}: ShopViewProps = {}) {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -160,11 +170,14 @@ export default function ShopView() {
 
   // Catalogue is 100% backend-driven — no static SAREES fallback. `null`
   // while the fetch is in flight; `[]` if the backend returns nothing or
-  // errors, which renders the empty state.
-  const [catalog, setCatalog] = useState<Saree[] | null>(null);
-  const [occasions, setOccasions] = useState<BackendOccasion[]>([]);
-  const [priceBuckets, setPriceBuckets] = useState<BackendPriceBucket[]>([]);
+  // errors, which renders the empty state. When the server component
+  // supplies `initialCatalog`, state is seeded immediately and the useEffect
+  // fetch below is skipped — first paint renders the full product grid.
+  const [catalog, setCatalog] = useState<Saree[] | null>(initialCatalog ?? null);
+  const [occasions, setOccasions] = useState<BackendOccasion[]>(initialOccasions ?? []);
+  const [priceBuckets, setPriceBuckets] = useState<BackendPriceBucket[]>(initialPriceBuckets ?? []);
   useEffect(() => {
+    if (initialCatalog) return;
     let cancelled = false;
     // Batch: products + storefront init (categories, occasions, price
     // buckets) in two parallel requests. Price buckets feed the Price
@@ -186,7 +199,7 @@ export default function ShopView() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [initialCatalog]);
 
   // Lock body scroll (with Lenis cooperation — see lib/scroll-lock.ts) and
   // listen for Escape while the mobile filter drawer is open. The overlay

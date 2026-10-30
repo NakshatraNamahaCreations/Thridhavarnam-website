@@ -95,7 +95,10 @@ export default function Featured() {
   }, [occasions]);
 
   const activeTab = tabs.find((t) => t.id === tab) ?? tabs[0];
-  const items = catalog.filter(activeTab.filter).slice(0, 12);
+  const items = catalog
+    .filter(activeTab.filter)
+    .filter((s) => !(typeof s.stock === 'number' && s.stock <= 0))
+    .slice(0, 12);
 
   const updateButtons = useCallback(() => {
     const el = railRef.current;

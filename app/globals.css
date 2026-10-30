@@ -10,28 +10,28 @@
  */
 @font-face {
   font-family: 'Black Mango';
-  src: url('/fonts/BlackMango-Regular.otf') format('opentype');
+  src: url('/fonts/BlackMango-Regular.woff2') format('woff2');
   font-weight: 400;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Black Mango';
-  src: url('/fonts/BlackMango-Medium.otf') format('opentype');
+  src: url('/fonts/BlackMango-Medium.woff2') format('woff2');
   font-weight: 500;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Black Mango';
-  src: url('/fonts/BlackMango-SemiBold.ttf') format('truetype');
+  src: url('/fonts/BlackMango-SemiBold.woff2') format('woff2');
   font-weight: 600;
   font-style: normal;
   font-display: swap;
 }
 @font-face {
   font-family: 'Black Mango';
-  src: url('/fonts/BlackMango-Bold.ttf') format('truetype');
+  src: url('/fonts/BlackMango-Bold.woff2') format('woff2');
   font-weight: 700;
   font-style: normal;
   font-display: swap;
@@ -98,7 +98,7 @@ body {
   background-color: var(--color-ivory);
   background-image:
     linear-gradient(rgba(247, 234, 217, 0.93), rgba(247, 234, 217, 0.93)),
-    url('/brand/pattern-title.svg');
+    url('/brand/pattern-title.webp');
   background-repeat: repeat, repeat;
   background-size: auto, 320px auto;
 }

@@ -192,7 +192,7 @@ export default function HeritageScroll() {
           aria-hidden
           className="absolute inset-0 pointer-events-none opacity-[0.05]"
           style={{
-            backgroundImage: "url('/brand/pattern-title.svg')",
+            backgroundImage: "url('/brand/pattern-title.webp')",
             backgroundRepeat: 'repeat',
             backgroundSize: '280px auto',
           }}

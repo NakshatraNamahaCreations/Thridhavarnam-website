@@ -393,8 +393,17 @@ function BannerHero({ banners }: { banners: BackendBanner[] }) {
               priority={i === 0}
               loading={i === 0 ? undefined : 'eager'}
               sizes="100vw"
-              className={`object-cover transition-opacity duration-700 ease-out ${loaded.has(b.id) ? 'opacity-100' : 'opacity-0'}`}
-              onLoad={() => setLoaded((prev) => new Set(prev).add(b.id))}
+              // The first banner is preloaded in <head> and marked priority —
+              // render it fully opaque immediately so bytes paint progressively
+              // instead of waiting on `onLoad` + a 700 ms fade. Subsequent
+              // slides keep the gentle crossfade on first appearance so the
+              // auto-rotation doesn't flash.
+              className={
+                i === 0
+                  ? 'object-cover'
+                  : `object-cover transition-opacity duration-300 ease-out ${loaded.has(b.id) ? 'opacity-100' : 'opacity-0'}`
+              }
+              onLoad={i === 0 ? undefined : () => setLoaded((prev) => new Set(prev).add(b.id))}
             />
           )}
           {/* Contrast overlay so any title/subtitle stays legible over

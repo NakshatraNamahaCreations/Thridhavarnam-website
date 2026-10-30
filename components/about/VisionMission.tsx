@@ -25,7 +25,7 @@ export default function VisionMission() {
         aria-hidden
         className="absolute inset-0 pointer-events-none"
         style={{
-          backgroundImage: "url('/brand/pattern-title.svg')",
+          backgroundImage: "url('/brand/pattern-title.webp')",
           backgroundRepeat: 'repeat',
           backgroundSize: '480px auto',
           opacity: 0.06,

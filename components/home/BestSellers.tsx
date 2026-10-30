@@ -129,7 +129,8 @@ export default function BestSellers() {
     if (!rawProducts) return [];
     return rawProducts
       .map((p) => backendToSaree(p))
-      .filter((s) => Array.isArray(s.flags) && s.flags.includes('bestseller'));
+      .filter((s) => Array.isArray(s.flags) && s.flags.includes('bestseller'))
+      .filter((s) => !(typeof s.stock === 'number' && s.stock <= 0));
   }, [rawProducts]);
 
   const updateButtons = useCallback(() => {

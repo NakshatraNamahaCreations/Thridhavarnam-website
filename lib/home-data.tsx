@@ -24,7 +24,7 @@ import {
   type BackendCoupon,
 } from './api';
 
-type HomeData = {
+export type HomeData = {
   // null = still loading; [] = loaded but empty / errored
   products: BackendProduct[] | null;
   categories: BackendCategory[];
@@ -34,26 +34,32 @@ type HomeData = {
   coupons: BackendCoupon[];
 };
 
-const HomeDataContext = createContext<HomeData>({
+const EMPTY: HomeData = {
   products: null,
   categories: [],
   occasions: [],
   banners: [],
   priceBuckets: [],
   coupons: [],
-});
+};
 
-export function HomeDataProvider({ children }: { children: React.ReactNode }) {
-  const [data, setData] = useState<HomeData>({
-    products: null,
-    categories: [],
-    occasions: [],
-    banners: [],
-    priceBuckets: [],
-    coupons: [],
-  });
+const HomeDataContext = createContext<HomeData>(EMPTY);
+
+export function HomeDataProvider({
+  children,
+  initial,
+}: {
+  children: React.ReactNode;
+  initial?: HomeData;
+}) {
+  const [data, setData] = useState<HomeData>(initial ?? EMPTY);
 
   useEffect(() => {
+    // When the server component has already supplied data via ISR, skip
+    // the client-side fetch — the next hard navigation / revalidate will
+    // refresh it. Prevents a double round-trip on first paint of /home.
+    if (initial && initial.products) return;
+
     let cancelled = false;
 
     // Try the batch endpoint first — one round-trip for all static data.
@@ -87,7 +93,7 @@ export function HomeDataProvider({ children }: { children: React.ReactNode }) {
       });
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [initial]);
 
   return (
     <HomeDataContext.Provider value={data}>
