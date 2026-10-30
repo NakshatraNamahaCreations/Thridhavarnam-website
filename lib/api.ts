@@ -9,9 +9,9 @@
 // the public GET routes we added locally, so it returns 401.
 const BASE =
   process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:5000/api';
+  // 'http://localhost:5000/api';
   // 'https://sareeebackend.onrender.com/api';
-  // 'https://api.thridhavarnam.com/api';
+  'https://api.thridhavarnam.com/api';
 
 // Shape returned by GET /api/products and /api/products/:id — kept loose
 // (all fields optional) because older documents seeded before the accordion
