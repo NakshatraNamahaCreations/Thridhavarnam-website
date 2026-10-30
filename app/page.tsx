@@ -6,14 +6,18 @@ import Preloader from '@/components/Preloader';
 import { useAudio } from '@/components/AudioProvider';
 import { storefrontInitApi, productsApi, cloudinaryUrl } from '@/lib/api';
 
-const INTRO_SEEN_KEY = 'thv_intro_seen';
+// Matches TOKEN_KEY in lib/api.ts — reading it directly here (instead of
+// going through useAuth) lets us decide before AuthProvider finishes its
+// own hydration, so the brief flash of maroon stays as short as possible.
+const AUTH_TOKEN_KEY = 'tridha-token';
 
 /**
  * Story page (root).
  *
- * Returning visitors are redirected to /home immediately — the full
- * Preloader → HeritageScroll → EnterAtelier flow only plays on the
- * first visit. Append `?intro=1` to force a replay.
+ * The cinematic intro plays on every entry — Preloader → HeritageScroll →
+ * EnterAtelier — except when a signed-in visitor arrives, in which case
+ * we send them straight to /home. Append `?intro=1` to force the intro
+ * even when signed in (useful for sharing / previewing).
  *
  * Rendering of the intro tree is one-way: once we decide to show it,
  * we never swap it back out, because GSAP + Lenis mutate the DOM and a
@@ -27,16 +31,11 @@ export default function StoryPage() {
 
   useEffect(() => {
     const force = new URLSearchParams(window.location.search).get('intro') === '1';
-    const seen = window.localStorage.getItem(INTRO_SEEN_KEY) === '1';
-    if (seen && !force) {
+    const signedIn = !!window.localStorage.getItem(AUTH_TOKEN_KEY);
+    if (signedIn && !force) {
       window.location.replace('/home');
       return;
     }
-    // Stamp the flag now so an abandoned intro still counts as seen —
-    // a return visit shouldn't force the full scroll a second time.
-    try {
-      window.localStorage.setItem(INTRO_SEEN_KEY, '1');
-    } catch {}
     setShowIntro(true);
     setDecided(true);
   }, []);
