@@ -193,49 +193,72 @@ export default function CheckoutPopup() {
       total,
     });
 
-    // Fire-and-forget backend persistence + Shiprocket push. We do NOT
-    // await this before navigating — a slow Shiprocket call shouldn't
-    // hold up the customer's thank-you page. If it fails, the admin
-    // panel will still see the order (with shiprocket.status='failed')
-    // and can retry manually.
-    void storefrontOrdersApi
-      .place({
-        id: order.id,
-        customer: order.address.fullName,
-        email: order.address.email,
-        phone: order.address.phone,
-        address: {
-          line1: order.address.line1,
-          line2: order.address.line2,
-          city: order.address.city,
-          state: order.address.state,
-          pincode: order.address.pincode,
-          country: order.address.country,
-        },
-        lineItems: orderItems.map((it) => ({
-          productId: it.productId,
-          name: it.name,
-          sku: it.productId,
-          qty: it.qty,
-          unitPrice: it.unitPrice,
-          weave: it.weave,
-          image: it.image,
-        })),
-        itemCount: order.itemCount,
-        payMethod: order.payMethod,
-        shipMethod: order.shipMethod,
-        paid: order.paid,
-        promoCode: order.promoCode,
-        subtotal: order.subtotal,
-        discount: order.discount,
-        shippingFee: order.shippingFee,
-        tax: order.tax,
-        total: order.total,
-        razorpay: opts.razorpay,
-      })
-      .catch((err) => {
-        console.warn('[checkout] backend order persistence failed', err);
-      });
+    // Backend persistence. We AWAIT this and retry on failure — a
+    // silently-dropped persist here is exactly the bug that leaves
+    // customers with a captured Razorpay payment but no order record
+    // (orphan payment, no /account/orders entry, nothing in the admin
+    // panel). The backend `/storefront/orders` endpoint is idempotent
+    // on `id` + razorpay.paymentId, so retries are safe.
+    const persistPayload = {
+      id: order.id,
+      customer: order.address.fullName,
+      email: order.address.email,
+      phone: order.address.phone,
+      address: {
+        line1: order.address.line1,
+        line2: order.address.line2,
+        city: order.address.city,
+        state: order.address.state,
+        pincode: order.address.pincode,
+        country: order.address.country,
+      },
+      lineItems: orderItems.map((it) => ({
+        productId: it.productId,
+        name: it.name,
+        sku: it.productId,
+        qty: it.qty,
+        unitPrice: it.unitPrice,
+        weave: it.weave,
+        image: it.image,
+      })),
+      itemCount: order.itemCount,
+      payMethod: order.payMethod,
+      shipMethod: order.shipMethod,
+      paid: order.paid,
+      promoCode: order.promoCode,
+      subtotal: order.subtotal,
+      discount: order.discount,
+      shippingFee: order.shippingFee,
+      tax: order.tax,
+      total: order.total,
+      razorpay: opts.razorpay,
+    };
+
+    let persisted = false;
+    let lastErr: unknown = null;
+    for (let attempt = 0; attempt < 3 && !persisted; attempt++) {
+      try {
+        await storefrontOrdersApi.place(persistPayload);
+        persisted = true;
+      } catch (err) {
+        lastErr = err;
+        // Exponential backoff — 1s, then 2s before giving up.
+        if (attempt < 2) await new Promise((r) => setTimeout(r, 1000 * (attempt + 1)));
+      }
+    }
+
+    if (!persisted) {
+      console.warn('[checkout] backend order persistence failed after retries', lastErr);
+      // Money was captured but the order didn't land in the backend.
+      // Surface this to the customer with the Razorpay reference so
+      // support can reconcile — do NOT silently continue.
+      if (opts.paid && opts.ref) {
+        window.alert(
+          `Your payment was successful (reference: ${opts.ref}), but we ran into trouble saving your order on our server. ` +
+            `Please contact support and share this payment reference — we'll make sure your order is processed.`,
+        );
+      }
+    }
 
     clearCart();
     const qs = new URLSearchParams({
