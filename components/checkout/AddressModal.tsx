@@ -17,6 +17,33 @@ const EMPTY: AddressInput = {
   country: 'India',
 };
 
+type CountryCode = { code: string; label: string; country: string };
+
+const COUNTRY_CODES: CountryCode[] = [
+  { code: '+91', label: '+91 (IN)', country: 'India' },
+  { code: '+1', label: '+1 (US)', country: 'United States' },
+  { code: '+44', label: '+44 (UK)', country: 'United Kingdom' },
+  { code: '+65', label: '+65 (SG)', country: 'Singapore' },
+  { code: '+971', label: '+971 (AE)', country: 'United Arab Emirates' },
+  { code: '+61', label: '+61 (AU)', country: 'Australia' },
+  { code: '+1', label: '+1 (CA)', country: 'Canada' },
+];
+
+// Split a stored phone like "+91 9876543210" or "9876543210" back into
+// (countryCode, digits). Defaults to +91 so legacy addresses stored
+// before the country-code field existed still render correctly.
+function splitPhone(stored: string): { countryCode: string; digits: string } {
+  const trimmed = (stored ?? '').trim();
+  const match = trimmed.match(/^\+(\d{1,3})\s*(.*)$/);
+  if (match) {
+    return {
+      countryCode: `+${match[1]}`,
+      digits: match[2].replace(/\D/g, ''),
+    };
+  }
+  return { countryCode: '+91', digits: trimmed.replace(/\D/g, '') };
+}
+
 type View = 'list' | 'form';
 
 type PinStatus =
@@ -94,6 +121,7 @@ export default function AddressModal() {
 
   const [view, setView] = useState<View>('list');
   const [draft, setDraft] = useState<AddressInput>(EMPTY);
+  const [countryCode, setCountryCode] = useState<string>('+91');
   const [editingId, setEditingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pin, setPin] = useState<PinStatus>({ kind: 'idle' });
@@ -233,6 +261,7 @@ if (entry?.Status === 'Success' && entry?.PostOffice?.length) {
 
   const beginAdd = () => {
     setDraft(EMPTY);
+    setCountryCode('+91');
     setEditingId(null);
     setError(null);
     setView('form');
@@ -240,7 +269,9 @@ if (entry?.Status === 'Success' && entry?.PostOffice?.length) {
 
   const beginEdit = (a: Address) => {
     const { id: _id, ...rest } = a;
-    setDraft(rest);
+    const { countryCode: cc, digits } = splitPhone(rest.phone);
+    setDraft({ ...rest, phone: digits });
+    setCountryCode(cc);
     setEditingId(a.id);
     setError(null);
     setView('form');
@@ -248,8 +279,13 @@ if (entry?.Status === 'Success' && entry?.PostOffice?.length) {
 
   const validate = (d: AddressInput): string | null => {
     if (!d.fullName.trim()) return 'Enter the recipient name.';
-    if (!/^[6-9]\d{9}$/.test(d.phone.replace(/\D/g, ''))) {
-      return 'Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.';
+    const phoneDigits = d.phone.replace(/\D/g, '');
+    if (countryCode === '+91') {
+      if (!/^[6-9]\d{9}$/.test(phoneDigits)) {
+        return 'Enter a valid 10-digit mobile number starting with 6, 7, 8 or 9.';
+      }
+    } else if (phoneDigits.length < 7 || phoneDigits.length > 15) {
+      return 'Enter a valid phone number.';
     }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(d.email.trim())) return 'Enter a valid email address.';
     if (!d.line1.trim()) return 'Enter the address line.';
@@ -287,11 +323,13 @@ if (entry?.Status === 'Success' && entry?.PostOffice?.length) {
       setError(err);
       return;
     }
+    const digits = draft.phone.replace(/\D/g, '');
+    const toSave: AddressInput = { ...draft, phone: `${countryCode} ${digits}` };
     if (editingId) {
-      updateAddress(editingId, draft);
+      updateAddress(editingId, toSave);
       selectAddress(editingId);
     } else {
-      addAddress(draft);
+      addAddress(toSave);
     }
     setView('list');
   };
@@ -448,23 +486,46 @@ if (entry?.Status === 'Success' && entry?.PostOffice?.length) {
                   required
                 />
                 <div>
-                  <Field
-                    label="Phone"
-                    type="tel"
-                    value={draft.phone}
-                    onChange={(v) =>
-                      // Strip non-digits and cap at 10 — mirrors the
-                      // pincode field. The Indian-mobile rule (must
-                      // start with 6/7/8/9) is enforced inline via the
-                      // hint below and again at submit-time.
-                      setDraft({ ...draft, phone: v.replace(/\D/g, '').slice(0, 10) })
-                    }
-                    autoComplete="tel"
-                    placeholder="9876543210"
-                    inputMode="numeric"
-                    required
-                  />
-                  <PhoneHint value={draft.phone} />
+                  <span className="block text-xs font-medium text-ink/65 mb-1">
+                    Phone<span className="text-maroon ml-0.5">*</span>
+                  </span>
+                  <div className="flex items-stretch gap-2">
+                    <select
+                      aria-label="Country code"
+                      value={countryCode}
+                      onChange={(e) => setCountryCode(e.target.value)}
+                      className="shrink-0 border border-ink/20 px-2 py-2 text-sm text-ink focus:outline-none focus:border-ink bg-ivory"
+                    >
+                      {COUNTRY_CODES.map((c) => (
+                        <option key={`${c.code}-${c.country}`} value={c.code}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      type="tel"
+                      value={draft.phone}
+                      onChange={(e) => {
+                        // Strip non-digits. If the user typed the selected
+                        // country code (e.g. "91" when +91 is already
+                        // chosen), drop it — the dropdown already carries
+                        // it, so we never double-prefix.
+                        let digits = e.target.value.replace(/\D/g, '');
+                        const ccDigits = countryCode.replace(/\D/g, '');
+                        if (ccDigits && digits.startsWith(ccDigits)) {
+                          digits = digits.slice(ccDigits.length);
+                        }
+                        const cap = countryCode === '+91' ? 10 : 15;
+                        setDraft({ ...draft, phone: digits.slice(0, cap) });
+                      }}
+                      autoComplete="tel-national"
+                      placeholder="9876543210"
+                      inputMode="numeric"
+                      required
+                      className="flex-1 min-w-0 border border-ink/20 px-3 py-2 text-sm text-ink placeholder:text-ink/40 focus:outline-none focus:border-ink bg-ivory"
+                    />
+                  </div>
+                  {countryCode === '+91' && <PhoneHint value={draft.phone} />}
                 </div>
               </div>
 
